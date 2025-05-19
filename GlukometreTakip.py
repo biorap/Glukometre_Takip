@@ -1699,7 +1699,7 @@ Son Güncelleme: 19 Mayıs 2025
         info_text.config(state="disabled") # Salt okunur yap
 
         # Tıklanabilir GitHub linki
-        hyperlink = tk.Label(main_frame, text="GitHub: https://github.com/biorap/Glukometre_Takip",
+        hyperlink = tk.Label(main_frame, text="GitHub: https://github.com/gkhncksn/Glukometre_Takip",
                              fg="blue", cursor="hand2", font=("Arial", 10, "underline"))
         hyperlink.pack(pady=(10, 0))
         def open_link(event):
