@@ -8,7 +8,7 @@ import sqlite3
 import subprocess
 import glob
 import sys
-from PIL import ImageTk, Image # Bu satırı ekleyin
+from PIL import ImageTk, Image
 from tkcalendar import Calendar
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Color
@@ -22,7 +22,7 @@ try:
     PYTHON_DOCX_AVAILABLE = True
 except ImportError:
     PYTHON_DOCX_AVAILABLE = False
-    print("Uyarı: Word formu oluşturma için 'python-docx' kütüphanesi bulunamadı. 'pip install python-docx' ile kurabilirsiniz.")
+    print("Uyarı: Word formu oluşturma için 'python-docx' kütüphanesi bulunamadı. Komut Satırından 'pip install python-docx' ile kurabilirsiniz.")
 
 # Türkçe alfabetik sıralama için locale kütüphanesi
 try:
