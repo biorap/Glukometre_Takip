@@ -196,7 +196,6 @@ class MainWindow:
         self.cmb_son4hane.bind("<<ComboboxSelected>>", self.on_son4hane_changed)
         self.cmb_son4hane.bind("<FocusOut>", self.on_son4hane_changed)
         self.cmb_son4hane.bind("<KeyRelease>", self.validate_son4hane_input)
-        ToolTip(self.cmb_son4hane, "Cihazın seri numarasının son 4 hanesini giriniz ya da varsa listeden seçiniz.")    
 
         self.frm_radyo = ttk.LabelFrame(self.frm_sol_panel, text="Radyo", style="Radyo.TLabelframe")
         self.frm_radyo.pack(side="bottom", fill="x", padx=5, pady=(0,5)) # pack side bottom
@@ -634,7 +633,7 @@ class MainWindow:
         elif len(new_content) > 0:
             self.cmb_son4hane.config(style="Invalid.TCombobox")
             if not hasattr(self, 'son4hane_tooltip') or self.son4hane_tooltip.widget != self.cmb_son4hane:
-                self.son4hane_tooltip = ToolTip(self.cmb_son4hane, "Son 4 hane 4 karakter olmalı.")
+                self.son4hane_tooltip = ToolTip(self.cmb_son4hane, "Cihazın seri numarasının son 4 hanesini giriniz ya da varsa listeden seçiniz.")
         else:
             self.cmb_son4hane.config(style="TCombobox")
             if hasattr(self, 'son4hane_tooltip') and self.son4hane_tooltip.tooltip_window:
@@ -1049,7 +1048,7 @@ class MainWindow:
         top.title("Takvim")
         top.iconbitmap(CALENDAR_ICON_PATH)
         top.geometry("400x350") # Biraz daha geniş ve yüksek başlangıç
-        top.resizable(True, True) # Genişletilebilir yapıldı
+        #top.resizable(True, True) # Genişletilebilir yapıldı
         top.transient(self.master)
         top.grab_set()
 
@@ -1064,8 +1063,7 @@ class MainWindow:
         cal = Calendar(top, selectmode="day", year=datetime.now().year, month=datetime.now().month, day=datetime.now().day,
                       locale="tr_TR", date_pattern="dd.mm.yyyy",
                       font="Arial 10", headersfont="Arial 11 bold")
-        # Takvim fill="both" ve expand=True ile pencereyle birlikte büyüsün
-        cal.pack(padx=15, pady=15, fill="both", expand=True) 
+        cal.pack(padx=15, pady=15, fill="both", expand=True) # Takvim fill="both" ve expand=True ile pencereyle birlikte büyüsün
 
         top.wait_window()
 
@@ -1197,17 +1195,18 @@ class MainWindow:
 
         tarih_str = datetime.now().strftime("%d.%m.%Y")
         birim = self.cmb_birim.get()
-        cihaz_tipi_marka = self.cmb_device_serial.get()
+        cihaz_tipi_marka = self.cmb_device_type.get()
+        cihaz_seri_no = self.cmb_device_serial.get()
         son_4_hane = self.cmb_son4hane.get().strip().upper()
-        cihaz_seri_no_tam = cihaz_tipi_marka + son_4_hane
+        cihaz_seri_no_tam = cihaz_seri_no + son_4_hane  # Seri no ve son 4 haneyi birleştir
 
-        if not self.add_or_update_device_assignment(birim, cihaz_tipi_marka, cihaz_seri_no_tam, son_4_hane):
+        if not self.add_or_update_device_assignment(birim, cihaz_tipi_marka, cihaz_seri_no, son_4_hane):
             return
 
         sonraki_tarih_str = self.ayarla_sonraki_tarih(tarih_str, 15)
 
         new_item = self.tree_kalite.insert("", "end", values=(
-            self.measurement_no_kalite, tarih_str, cihaz_tipi_marka, cihaz_seri_no_tam,
+            self.measurement_no_kalite, tarih_str, cihaz_tipi_marka, cihaz_seri_no_tam,  # Birleştirilmiş seri numarasını kullan
             l1, l2, l3, birim, sonraki_tarih_str
         ))
         self.measurement_no_kalite += 1
@@ -1241,18 +1240,19 @@ class MainWindow:
 
             tarih_str = datetime.now().strftime("%d.%m.%Y")
             birim = self.cmb_birim.get()
-            cihaz_tipi_marka = self.cmb_device_serial.get()
+            cihaz_tipi_marka = self.cmb_device_type.get()
+            cihaz_seri_no = self.cmb_device_serial.get()
             son_4_hane = self.cmb_son4hane.get().strip().upper()
-            cihaz_seri_no_tam = cihaz_tipi_marka + son_4_hane
+            cihaz_seri_no_tam = cihaz_seri_no + son_4_hane  # Seri no ve son 4 haneyi birleştir
 
-            if not self.add_or_update_device_assignment(birim, cihaz_tipi_marka, cihaz_seri_no_tam, son_4_hane):
+            if not self.add_or_update_device_assignment(birim, cihaz_tipi_marka, cihaz_seri_no, son_4_hane):
                 return
 
             sonraki_tarih_yuzde_str = self.ayarla_sonraki_tarih(tarih_str, 30)
             tags_to_apply = ('high_deviation_tree',) if yuzde_sapma > 9.99 else ()
 
             new_item = self.tree_yuzde.insert("", "end", values=(
-                self.measurement_no_yuzde, tarih_str, cihaz_tipi_marka, cihaz_seri_no_tam,
+                self.measurement_no_yuzde, tarih_str, cihaz_tipi_marka, cihaz_seri_no_tam,  # Birleştirilmiş seri numarasını kullan
                 glukometre, lab, f"{yuzde_sapma:.2f}%", birim, sonraki_tarih_yuzde_str
             ), tags=tags_to_apply)
             self.measurement_no_yuzde += 1
