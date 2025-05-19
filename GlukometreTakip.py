@@ -1610,7 +1610,7 @@ class MainWindow:
     def hakkinda(self):
         about_win = tk.Toplevel(self.master)
         about_win.title("Hakkında - Glukometre Takip Programı")
-        about_win.geometry("500x420")
+        about_win.geometry("500x440")
         about_win.resizable(False, False)
         about_win.transient(self.master)
         about_win.grab_set()
@@ -1697,6 +1697,15 @@ Son Güncelleme: 19 Mayıs 2025
 """
         info_text.insert("1.0", info_content)
         info_text.config(state="disabled") # Salt okunur yap
+
+        # Tıklanabilir GitHub linki
+        hyperlink = tk.Label(main_frame, text="GitHub: https://github.com/biorap/Glukometre_Takip",
+                             fg="blue", cursor="hand2", font=("Arial", 10, "underline"))
+        hyperlink.pack(pady=(10, 0))
+        def open_link(event):
+            import webbrowser
+            webbrowser.open("https://github.com/biorap/Glukometre_Takip")
+        hyperlink.bind("<Button-1>", open_link)
 
         # Alt bilgi
         footer_frame = ttk.Frame(main_frame)
