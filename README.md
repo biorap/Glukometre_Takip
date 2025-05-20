@@ -12,7 +12,7 @@ Glukometre Takip Programı, sağlık kuruluşlarında kullanılan glukometre cih
 • Günü Geçen/Yaklaşan Ölçüm Uyarıları\
 \
 Ek Özellikler:\
-• Dahili İnternet Radyosu (etkin olması için https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest "ffmpeg-n7.1-latest-win64-gpl-" dosyasını indirip, zip dosyasının içeriğini ffmpeg klasörü içerisine atın) \
+• Dahili İnternet Radyosu (etkin olması için https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest adresinden "ffmpeg-n7.1-latest-win64-gpl-" dosyasını indirip, zip dosyasının içeriğini ffmpeg klasörü içerisine atın) \
 • Dahili Dijital Saat\
 • Vücut Kitle İndeksi Hesaplama\
 • Takvim ve Hesap Makinası erişimi\
