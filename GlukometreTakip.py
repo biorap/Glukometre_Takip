@@ -38,22 +38,15 @@ BACKUP_DIR = "Yedeklenmis Veriler" # .csv Yedekleme dizini
 EXCEL_OUTPUT_DIR = "Excel'e Aktarılanlar" # Excel çıktıları için çıktı klasörü
 WORD_FORMS_DIR = "HBTC Kalite Kontrol" # Word formları için çıktı klasörü
 SABLONLAR_DIR = "Sablonlar"
+
+# Veri dosyaları
 HBTC_TEMPLATE_FILE = "HBTC_KALITE_KONTROL_FORMU.docx"
 KALITE_KONTROL_SABLON_EXCEL = "Kalite_Kontrol_Verileri_Sablon.xlsx"
 YUZDE_SAPMA_SABLON_EXCEL = "Yuzde_Sapma_Verileri_Sablon.xlsx"
 CALENDAR_ICON_PATH = "Resources\\calendar.ico" # Takvim simgesi
 APP_ICON_PATH = "Resources\\app_icon.ico" # Uygulama simgesi
-# Veri dosyaları
-DEVICES_TYPES_FILE = "DevicesTypes.txt" # Cihaz tipleri ve markalarını saklayan dosya
-DEVICES_SERIALS_FILE = "DevicesSerials.txt" # Cihaz seri numaralarını saklayan dosya
-BIRIMLER_FILE = "Birimler.txt" # Cihazın geldiği birimleri saklayan dosya
 DB_FILE = "cihazlar.db" # Database dosyası
 DB_SETTINGS_TABLE = "program_ayarlari" # Database dosyası içerisinde ayarlar tablosu
-
-# Veri dosyaları bulunamazsa örnek veri dosyaları oluştur
-SAMPLE_DEVICE_TYPES = ["GLUKOMETRE-BİOJECT PLUS", "ACCU-CHEK PERFORMA NANO", "BAYER CONTOUR NEXT", "İNOVATİF CİHAZ X", "ÖZEL MODEL Y"]
-SAMPLE_DEVICE_SERIALS = ["BG709223125", "SN123456789", "SN987654321"]
-SAMPLE_BIRIMLER = ["ACİL SERVİS", "DAHİLİYE POLİKLİNİĞİ", "YOĞUN BAKIM", "ÇOCUK SERVİSİ", "İNTANİYE", "ÜROLOJİ", "ACİL İZOLASYON"]
 
 class ToolTip:
     def __init__(self, widget, text):
@@ -126,10 +119,8 @@ class MainWindow:
 
         # İkonları yükle
         try:
-            # Betiğin bulunduğu dizini al
             script_dir = os.path.dirname(os.path.abspath(__file__))
             
-            # İkon dosyalarının tam yollarını oluştur
             plus_icon_path = os.path.join(script_dir, "Resources", "plus.ico")
             minus_icon_path = os.path.join(script_dir, "Resources", "minus.ico")
 
@@ -141,7 +132,6 @@ class MainWindow:
             # İkonları Pillow ile aç ve PhotoImage nesnesine dönüştür
             plus_image = Image.open(plus_icon_path)
             self.plus_icon = ImageTk.PhotoImage(plus_image)
-
             minus_image = Image.open(minus_icon_path)
             self.minus_icon = ImageTk.PhotoImage(minus_image)
 
@@ -200,7 +190,7 @@ class MainWindow:
         self.frm_radyo = ttk.LabelFrame(self.frm_sol_panel, text="Radyo", style="Radyo.TLabelframe")
         self.frm_radyo.pack(side="bottom", fill="x", padx=5, pady=(0,5)) # pack side bottom
 
-        ttk.Label(self.frm_radyo, text="Radyo İstasyonu:").pack(fill="x", padx=5, pady=(5,0))
+        #ttk.Label(self.frm_radyo, text="Radyo İstasyonu:").pack(fill="x", padx=5, pady=(5,0))
         self.cmb_radyo = ttk.Combobox(self.frm_radyo, state="readonly")
         self.radio_station_names, self.radio_station_map = self.load_radio_stations_from_db()
         ttk.Label(self.frm_radyo, text="Radyo İstasyonu:").pack(fill="x", padx=5, pady=(5,0))
@@ -254,7 +244,6 @@ class MainWindow:
             self.stop_icon = None
 
         # Butonları oluştur ve ikonları ekle
-        # Bu kısım aynı kalabilir, çünkü self.play_icon ve self.stop_icon artık PhotoImage nesneleri (veya None)
         if self.play_icon:
             self.btn_radyo_play = ttk.Button(frm_radyo_controls, text="Play", image=self.play_icon, compound=tk.LEFT, command=self.play_radio_command)
         else:
@@ -278,7 +267,6 @@ class MainWindow:
 
         self.volume_slider = ttk.Scale(frm_radyo_controls, from_=0, to=100, orient=tk.HORIZONTAL, variable=self.radio_volume, command=self.on_volume_change)
         self.volume_slider.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(5,0))
-        ToolTip(self.volume_slider, "Ses Seviyesi")
         
         # "Sesi Kıs" butonu
         try:
@@ -314,13 +302,12 @@ class MainWindow:
             self.btn_mute_sound = ttk.Button(frm_radyo_controls, text="Sesi Kıs", command=self.toggle_mute_sound)
 
         self.btn_mute_sound.grid(row=1, column=2, sticky="ew", padx=(5,0), pady=(5,0))
-        ToolTip(self.btn_mute_sound, "Ses seviyesini sıfırla/eski haline getir")
-        self.lbl_volume_percent = ttk.Label(frm_radyo_controls, text=f"Ses Seviyesi: {self.radio_volume.get()}%")
-        self.lbl_volume_percent.grid(row=2, column=0, columnspan=3, sticky="n") # columnspan 3 yapıldı
+        self.lbl_volume_percent = ttk.Label(frm_radyo_controls, text="")
+        self.lbl_volume_percent.grid(row=2, column=0, columnspan=3, sticky="n")
 
         frm_radyo_controls.columnconfigure(0, weight=1)
         frm_radyo_controls.columnconfigure(1, weight=1)
-        frm_radyo_controls.columnconfigure(2, weight=0) # Sesi Kıs butonu için
+        frm_radyo_controls.columnconfigure(2, weight=0)
 
         self.radio_process = None
         self.update_radio_button_states()
@@ -347,7 +334,7 @@ class MainWindow:
 
         self.guncelle_dijital_saat()
 
-        self.load_data_from_files_to_db()
+        #self.load_data_from_files_to_db()
         self.load_initial_data()
         # Combobox seçim değişikliklerini ayarlara kaydet
         self.cmb_device_type.bind("<<ComboboxSelected>>", self.on_device_type_selected)
@@ -448,6 +435,9 @@ class MainWindow:
             self.stop_radio()
             # Wait a bit for ffplay to stop, then restart with new volume
             self.master.after(200, lambda: self.play_radio(volume_level=volume_level))
+        
+        else:
+            self.lbl_volume_percent.config(text=f"Ses Seviyesi: {volume_level}%") # Sadece ses seviyesini göster
             
     def toggle_mute_sound(self):
         if not hasattr(self, 'loud_icon') or not hasattr(self, 'mute_icon'):
@@ -495,9 +485,28 @@ class MainWindow:
         if playing:
             self.btn_radyo_play.config(state=tk.DISABLED)
             self.btn_radyo_stop.config(state=tk.NORMAL)
+            self.btn_mute_sound.config(state=tk.NORMAL) # Sesi Kıs butonu aktif
         else:
             self.btn_radyo_play.config(state=tk.NORMAL)
             self.btn_radyo_stop.config(state=tk.DISABLED)
+            self.btn_mute_sound.config(state=tk.DISABLED) # Sesi Kıs butonu pasif
+
+    def start_marquee(self, station_name):
+        self.marquee_text = f"..:: NOW PLAYING - {station_name} ::.."
+        self.marquee_pos = 0
+        self.marquee_update()
+
+    def stop_marquee(self):
+        if hasattr(self, 'marquee_job') and self.marquee_job is not None:
+            self.master.after_cancel(self.marquee_job)
+            self.marquee_job = None
+
+    def marquee_update(self):
+        if self.radio_process and self.radio_process.poll() is None:
+            displayed_text = self.marquee_text[self.marquee_pos:] + self.marquee_text[:self.marquee_pos]
+            self.lbl_volume_percent.config(text=displayed_text)
+            self.marquee_pos = (self.marquee_pos + 1) % len(self.marquee_text)
+            self.marquee_job = self.master.after(200, self.marquee_update)
 
     def update_status_bar(self):
         current_date = datetime.now().strftime("%d.%m.%Y")
@@ -620,47 +629,6 @@ class MainWindow:
 
         return local_radio_station_names, local_radio_station_map # Veriyi DÖNDÜR
 
-    def load_data_from_files_to_db(self):
-        # Birimleri yükle
-        if os.path.exists(BIRIMLER_FILE):
-            birimler = self.load_file_lines(BIRIMLER_FILE, sort_data=True)
-            conn = sqlite3.connect(DB_FILE)
-            cursor = conn.cursor()
-            for birim in birimler:
-                cursor.execute("INSERT OR IGNORE INTO birimler (birim_adi) VALUES (?)", (birim,))
-            conn.commit()
-            conn.close()
-
-        # Cihaz tiplerini yükle
-        if os.path.exists(DEVICES_TYPES_FILE):
-            cihaz_tipleri = self.load_file_lines(DEVICES_TYPES_FILE, sort_data=True)
-            conn = sqlite3.connect(DB_FILE)
-            cursor = conn.cursor()
-            for cihaz_tipi in cihaz_tipleri:
-                cursor.execute("INSERT OR IGNORE INTO cihaz_tipleri (cihaz_tipi) VALUES (?)", (cihaz_tipi,))
-            conn.commit()
-            conn.close()
-
-        # Cihaz serilerini yükle
-        if os.path.exists(DEVICES_SERIALS_FILE):
-            cihaz_serileri = self.load_file_lines(DEVICES_SERIALS_FILE, sort_data=False)
-            conn = sqlite3.connect(DB_FILE)
-            cursor = conn.cursor()
-            for cihaz_seri in cihaz_serileri:
-                cursor.execute("INSERT OR IGNORE INTO cihaz_serileri (cihaz_seri) VALUES (?)", (cihaz_seri,))
-            conn.commit()
-            conn.close()
-
-        # Radyo istasyonlarını yükle
-        if os.path.exists("RadioStationsFFMPEG.txt"):
-            radio_stations, radio_map = self.load_radio_stations_from_file()
-            conn = sqlite3.connect(DB_FILE)
-            cursor = conn.cursor()
-            for name, url in radio_map.items():
-                cursor.execute("INSERT OR IGNORE INTO radyolar (radyo_adi, radyo_url) VALUES (?, ?)", (name, url))
-            conn.commit()
-            conn.close()
-
     def get_son4hane_for_device(self, birim, tip, seri):
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
@@ -756,15 +724,14 @@ class MainWindow:
                 self.cakisma_uyarildi = True
                 messagebox.showerror(
                     "Kayıt Çakışması",
-                    f"Bu Seri Numaralı cihaz ({seri}{son4}) zaten '{result[0]}' biriminde ve '{result[1]}' cihaz tipiyle kayıtlı.\n"
-                    "Cihaz Tipi, Seri No, Son 4 Hane ve Birim bilgilerini kontrol ediniz."
+                    f"{seri}{son4} seri numarasına sahip {result[1]} cihazı zaten {result[0]} biriminde kayıtlı.\n"
+                    "Girdiğiniz verileri tekrar kontrol ediniz."
                 )
                 self.master.after(100, lambda: setattr(self, "cakisma_uyarildi", False))
                 self.master.focus()
                 return "break"
         finally:
             conn.close()
-
 
     def guncelle_dijital_saat(self):
         simdiki_zaman = datetime.now().strftime("%H:%M:%S")
@@ -859,33 +826,6 @@ class MainWindow:
             if hasattr(self, 'son4hane_tooltip') and self.son4hane_tooltip.tooltip_window:
                 self.son4hane_tooltip.hide_tooltip()
         return True
-
-    def load_file_lines(self, filename, sample_data=None, sort_data=True):
-        if not os.path.exists(filename):
-            with open(filename, "w", encoding="utf-8-sig") as f:
-                if sample_data:
-                    for line in sample_data: f.write(line.upper() + "\n")
-            lines = [line.upper() for line in sample_data] if sample_data else []
-        else:
-            with open(filename, "r", encoding="utf-8-sig") as f:
-                lines = [line.strip().upper() for line in f if line.strip()]
-
-        lines = list(dict.fromkeys(lines))
-        if sort_data:
-            try:
-                return sorted(lines, key=locale.strxfrm)
-            except NameError:
-                return sorted(lines)
-        return lines
-
-    def save_birimler(self):
-        try:
-            sorted_birimler = sorted(self.birimler, key=locale.strxfrm)
-        except NameError:
-            sorted_birimler = sorted(self.birimler)
-        with open(BIRIMLER_FILE, "w", encoding="utf-8-sig") as f:
-            for birim in sorted_birimler: f.write(birim + "\n")
-        self.cmb_birim['values'] = sorted_birimler
 
     def create_tabs(self):
         self.tab1 = ttk.Frame(self.notebook)
@@ -1270,13 +1210,9 @@ class MainWindow:
     def open_calendar(self):
         top = tk.Toplevel(self.master)
         top.title("Takvim")
-        top.iconbitmap(CALENDAR_ICON_PATH)
-        top.geometry("400x350") # Biraz daha geniş ve yüksek başlangıç
-        #top.resizable(True, True) # Genişletilebilir yapıldı
+        top.geometry("400x350")
         top.transient(self.master)
         top.grab_set()
-
-        # Ekran ortasına yerleştirme
         top.update_idletasks()
         width = top.winfo_width()
         height = top.winfo_height()
@@ -1284,11 +1220,16 @@ class MainWindow:
         y = (top.winfo_screenheight() // 2) - (height // 2)
         top.geometry(f"{width}x{height}+{x}+{y}")
 
+        try:
+            top.iconbitmap(CALENDAR_ICON_PATH)
+        except:
+            pass
+
         cal = Calendar(top, selectmode="day", year=datetime.now().year, month=datetime.now().month, day=datetime.now().day,
                       locale="tr_TR", date_pattern="dd.mm.yyyy",
                       font="Arial 10", headersfont="Arial 11 bold")
-        cal.pack(padx=15, pady=15, fill="both", expand=True) # Takvim fill="both" ve expand=True ile pencereyle birlikte büyüsün
-
+        cal.pack(padx=15, pady=15, fill="both", expand=True)
+        top.after(100, top.focus_set)
         top.wait_window()
 
     def birim_ekle_pencere(self):
@@ -2278,6 +2219,7 @@ Son Güncelleme: 19 Mayıs 2025
             self.radio_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                                   startupinfo=startupinfo, creationflags=creation_flags)
             self.update_radio_button_states(playing=True)
+            self.start_marquee(selected_name) # Radyo çalmaya başlayınca marquee'yi başlat
         except FileNotFoundError:
             messagebox.showerror("Radyo", 
                            "ffplay bulunamadı!\n"
@@ -2285,9 +2227,11 @@ Son Güncelleme: 19 Mayıs 2025
                            "veya sistem PATH'ına ffmpeg ekleyin.", 
                            parent=self.master)
             self.radio_process = None; self.update_radio_button_states(playing=False)
+            self.lbl_volume_percent.config(text="ffplay bulunamadı!") # Hata mesajını label'da göster
         except Exception as e:
             messagebox.showerror("Radyo", f"Radyo başlatılamadı: {e}", parent=self.master)
             self.radio_process = None; self.update_radio_button_states(playing=False)
+            self.lbl_volume_percent.config(text=f"Radyo başlatılamadı: {e}") # Hata mesajını label'da göster
 
     def stop_radio(self):
         if self.radio_process and self.radio_process.poll() is None:
@@ -2295,6 +2239,8 @@ Son Güncelleme: 19 Mayıs 2025
             except Exception as e: print(f"Radyo durdurulurken hata: {e}")
             finally: self.radio_process = None
         self.update_radio_button_states(playing=False)
+        self.stop_marquee() # Radyo durunca marquee'yi durdur
+        self.lbl_volume_percent.config(text="") # Radyo durunca label'ı temizle
 
     def open_bmi_calculation_dialog(self):
         dialog = tk.Toplevel(self.master)
@@ -2318,6 +2264,10 @@ Son Güncelleme: 19 Mayıs 2025
         ttk.Label(dialog, text="Boyunuzu Giriniz (Cm):").pack(pady=5)
         height_entry = ttk.Entry(dialog)
         height_entry.pack(pady=5)
+
+        # Odak ve imleç ayarları buraya taşındı
+        dialog.focus_set()
+        weight_entry.focus_set()
 
         def calculate_bmi():
             try:
