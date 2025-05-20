@@ -45,7 +45,7 @@ KALITE_KONTROL_SABLON_EXCEL = "Kalite_Kontrol_Verileri_Sablon.xlsx"
 YUZDE_SAPMA_SABLON_EXCEL = "Yuzde_Sapma_Verileri_Sablon.xlsx"
 CALENDAR_ICON_PATH = "Resources\\calendar.ico" # Takvim simgesi
 APP_ICON_PATH = "Resources\\app_icon.ico" # Uygulama simgesi
-DB_FILE = "cihazlar.db" # Database dosyası
+DB_FILE = "veriler.db" # Database dosyası
 DB_SETTINGS_TABLE = "program_ayarlari" # Database dosyası içerisinde ayarlar tablosu
 
 class ToolTip:
