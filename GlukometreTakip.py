@@ -8,7 +8,7 @@ import sqlite3
 import subprocess
 import glob
 import sys
-from PIL import ImageTk, Image
+from PIL import ImageTk, Image # Bu satırı ekleyin
 from tkcalendar import Calendar
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Color
@@ -22,7 +22,7 @@ try:
     PYTHON_DOCX_AVAILABLE = True
 except ImportError:
     PYTHON_DOCX_AVAILABLE = False
-    print("Uyarı: Word formu oluşturma için 'python-docx' kütüphanesi bulunamadı. Komut Satırından 'pip install python-docx' ile kurabilirsiniz.")
+    print("Uyarı: Word formu oluşturma için 'python-docx' kütüphanesi bulunamadı. 'pip install python-docx' ile kurabilirsiniz.")
 
 # Türkçe alfabetik sıralama için locale kütüphanesi
 try:
@@ -172,9 +172,10 @@ class MainWindow:
         ToolTip(self.btn_birim_sil, "Seçili birimi silmek için tıklayınız.")
 
         ttk.Label(self.frm_glukometre_genel, text="Cihaz Tipi - Marka:").pack(fill="x", padx=5, pady=(5,0))
-        self.cmb_device_type = ttk.Combobox(self.frm_glukometre_genel, state="readonly")
+        self.cmb_device_type = ttk.Combobox(self.frm_glukometre_genel) # state="readonly" kaldırıldı
         self.cmb_device_type.pack(fill="x", padx=5, pady=(0,5))
-        self.cmb_device_type.bind("<<ComboboxSelected>>", self.on_birim_cihaz_secildi)
+        self.cmb_device_type.bind("<FocusOut>", self.on_device_type_entered) # Klavyeden giriş için
+        self.cmb_device_type.bind("<Return>", self.on_device_type_entered) # Enter tuşu için
 
         frm_seri_no_container = ttk.Frame(self.frm_glukometre_genel)
         frm_seri_no_container.pack(fill="x", padx=0, pady=0)
@@ -183,7 +184,6 @@ class MainWindow:
         ttk.Label(frm_seri_no_sol, text="Cihaz Seri No:").pack(fill="x")
         self.cmb_device_serial = ttk.Combobox(frm_seri_no_sol)
         self.cmb_device_serial.pack(fill="x")
-        self.cmb_device_serial.bind("<<ComboboxSelected>>", self.on_birim_cihaz_secildi)
         self.cmb_device_serial.bind("<Return>", self.on_seri_no_entered)
         self.cmb_device_serial.bind("<FocusOut>", self.on_seri_no_entered)
 
@@ -200,11 +200,20 @@ class MainWindow:
         self.frm_radyo = ttk.LabelFrame(self.frm_sol_panel, text="Radyo", style="Radyo.TLabelframe")
         self.frm_radyo.pack(side="bottom", fill="x", padx=5, pady=(0,5)) # pack side bottom
 
-        self.radio_station_names, self.radio_station_map = self.load_radio_stations()
         ttk.Label(self.frm_radyo, text="Radyo İstasyonu:").pack(fill="x", padx=5, pady=(5,0))
-        self.cmb_radyo = ttk.Combobox(self.frm_radyo, state="readonly", values=self.radio_station_names)
-        self.cmb_radyo.pack(fill="x", padx=5, pady=(0,5))
+        self.cmb_radyo = ttk.Combobox(self.frm_radyo, state="readonly")
+        self.radio_station_names, self.radio_station_map = self.load_radio_stations_from_db()
+        ttk.Label(self.frm_radyo, text="Radyo İstasyonu:").pack(fill="x", padx=5, pady=(5,0))
+        self.cmb_radyo['values'] = self.radio_station_names
 
+        last_radio_station = self.load_setting("last_radio_station")
+        if last_radio_station and last_radio_station in self.radio_station_names:
+            self.cmb_radyo.set(last_radio_station)
+        elif self.radio_station_names: # Eğer liste boş değilse
+            self.cmb_radyo.current(0)
+
+        self.load_radio_stations_from_db() # Çağrı şekli değiştirildi
+        self.cmb_radyo.pack(fill="x", padx=5, pady=(0,5)) # Şimdi combobox'ı paketleyin
         last_radio_station = self.load_setting("last_radio_station")
         if last_radio_station and last_radio_station in self.radio_station_names:
             self.cmb_radyo.set(last_radio_station)
@@ -338,26 +347,11 @@ class MainWindow:
 
         self.guncelle_dijital_saat()
 
-        self.device_types = self.load_file_lines(DEVICES_TYPES_FILE, SAMPLE_DEVICE_TYPES, sort_data=True)
-        self.device_serials = self.load_file_lines(DEVICES_SERIALS_FILE, SAMPLE_DEVICE_SERIALS, sort_data=False)
-        self.birimler = self.load_file_lines(BIRIMLER_FILE, SAMPLE_BIRIMLER, sort_data=True)
-
-        self.cmb_device_type['values'] = self.device_types
-        if "GLUKOMETRE-BİOJECT PLUS" in self.device_types:
-            self.cmb_device_type.set("GLUKOMETRE-BİOJECT PLUS")
-        elif self.device_types:
-            self.cmb_device_type.current(0)
-
-        self.cmb_device_serial['values'] = self.device_serials
-        if "BG709223125" in self.device_serials:
-            self.cmb_device_serial.set("BG709223125")
-        elif self.device_serials:
-            self.cmb_device_serial.current(0)
-
-        self.cmb_birim['values'] = self.birimler
-        if self.birimler:
-            self.cmb_birim.current(0)
-
+        self.load_data_from_files_to_db()
+        self.load_initial_data()
+        # Combobox seçim değişikliklerini ayarlara kaydet
+        self.cmb_device_type.bind("<<ComboboxSelected>>", self.on_device_type_selected)
+        self.cmb_device_serial.bind("<<ComboboxSelected>>", self.on_device_serial_selected)
         self.on_birim_cihaz_secildi()
 
         self.measurement_no_kalite = 1
@@ -371,6 +365,15 @@ class MainWindow:
         self.load_data_from_csv()
         self.update_status_bar()
         master.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        # Cihaz kaydı çakışma kontrolünü tablardaki textbox kutularına odaklanınca yap
+        self.txt_l1.bind("<FocusIn>", self.kontrol_cihaz_kayit_cakisma)
+        self.txt_l2.bind("<FocusIn>", self.kontrol_cihaz_kayit_cakisma)
+        self.txt_l3.bind("<FocusIn>", self.kontrol_cihaz_kayit_cakisma)
+        self.txt_glukometre_yuzde.bind("<FocusIn>", self.kontrol_cihaz_kayit_cakisma)
+        self.txt_lab_yuzde.bind("<FocusIn>", self.kontrol_cihaz_kayit_cakisma)
+
+        self.cakisma_uyarildi = False  # Uyarı gösterildi mi kontrolü
 
     def start_islem_label(self):
         if not self.islem_label_visible:
@@ -506,6 +509,37 @@ class MainWindow:
     def init_device_db(self):
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
+
+        # Birimler Tablosu
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS birimler (
+                birim_adi TEXT PRIMARY KEY
+            )
+        """)
+
+        # Cihaz Tipleri Tablosu
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cihaz_tipleri (
+                cihaz_tipi TEXT PRIMARY KEY
+            )
+        """)
+
+        # Cihaz Serileri Tablosu
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cihaz_serileri (
+                cihaz_seri TEXT PRIMARY KEY
+            )
+        """)
+
+        # Radyolar Tablosu
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS radyolar (
+                radyo_adi TEXT PRIMARY KEY,
+                radyo_url TEXT NOT NULL
+            )
+        """)
+
+        # Cihaz Kayıtları Tablosu (Zaten Mevcut)
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS cihaz_kayitlari (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -516,8 +550,116 @@ class MainWindow:
                 UNIQUE (cihaz_tipi, cihaz_seri, son_4_hane)
             )
         """)
+
         conn.commit()
         conn.close()
+
+    def load_initial_data(self):
+        self.load_birimler_from_db()
+        self.load_device_types_from_db()
+        self.load_device_serials_from_db()
+        self.load_radio_stations_from_db()
+
+    def load_birimler_from_db(self):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT birim_adi FROM birimler")
+        results = cursor.fetchall()
+        self.birimler = [row[0] for row in results]
+        conn.close()
+        self.cmb_birim['values'] = self.birimler
+        if self.birimler:
+            self.cmb_birim.current(0)
+
+    def load_device_types_from_db(self):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT cihaz_tipi FROM cihaz_tipleri")
+        results = cursor.fetchall()
+        self.device_types = sorted([row[0] for row in results], key=locale.strxfrm)
+        conn.close()
+        self.cmb_device_type['values'] = self.device_types
+
+        last_type = self.load_setting("last_selected_device_type")
+        if last_type and last_type in self.device_types:
+            self.cmb_device_type.set(last_type)
+        else:
+            self.cmb_device_type.set("")
+
+
+    def load_device_serials_from_db(self):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT cihaz_seri FROM cihaz_serileri")
+        results = cursor.fetchall()
+        self.device_serials = sorted([row[0] for row in results], key=locale.strxfrm)
+        conn.close()
+        self.cmb_device_serial['values'] = self.device_serials
+
+        # Otomatik seçim kaldırıldı, ayarlardan yükle
+        last_serial = self.load_setting("last_selected_serial_no")
+        if last_serial and last_serial in self.device_serials:
+            self.cmb_device_serial.set(last_serial)
+        else:
+            self.cmb_device_serial.set("")
+
+    # GlukometreTakip.py dosyasında, MainWindow sınıfı içinde
+    def load_radio_stations_from_db(self):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT radyo_adi, radyo_url FROM radyolar")
+        results = cursor.fetchall()
+        # Yerel değişkenlere ata
+        local_radio_station_names = [row[0] for row in results]
+        local_radio_station_map = {row[0]: row[1] for row in results}
+        conn.close()
+
+        # Sınıf özelliklerini de ayarla (isteğe bağlı, __init__ içinde de yapılabilir)
+        self.radio_station_names = local_radio_station_names
+        self.radio_station_map = local_radio_station_map
+
+        return local_radio_station_names, local_radio_station_map # Veriyi DÖNDÜR
+
+    def load_data_from_files_to_db(self):
+        # Birimleri yükle
+        if os.path.exists(BIRIMLER_FILE):
+            birimler = self.load_file_lines(BIRIMLER_FILE, sort_data=True)
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            for birim in birimler:
+                cursor.execute("INSERT OR IGNORE INTO birimler (birim_adi) VALUES (?)", (birim,))
+            conn.commit()
+            conn.close()
+
+        # Cihaz tiplerini yükle
+        if os.path.exists(DEVICES_TYPES_FILE):
+            cihaz_tipleri = self.load_file_lines(DEVICES_TYPES_FILE, sort_data=True)
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            for cihaz_tipi in cihaz_tipleri:
+                cursor.execute("INSERT OR IGNORE INTO cihaz_tipleri (cihaz_tipi) VALUES (?)", (cihaz_tipi,))
+            conn.commit()
+            conn.close()
+
+        # Cihaz serilerini yükle
+        if os.path.exists(DEVICES_SERIALS_FILE):
+            cihaz_serileri = self.load_file_lines(DEVICES_SERIALS_FILE, sort_data=False)
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            for cihaz_seri in cihaz_serileri:
+                cursor.execute("INSERT OR IGNORE INTO cihaz_serileri (cihaz_seri) VALUES (?)", (cihaz_seri,))
+            conn.commit()
+            conn.close()
+
+        # Radyo istasyonlarını yükle
+        if os.path.exists("RadioStationsFFMPEG.txt"):
+            radio_stations, radio_map = self.load_radio_stations_from_file()
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            for name, url in radio_map.items():
+                cursor.execute("INSERT OR IGNORE INTO radyolar (radyo_adi, radyo_url) VALUES (?, ?)", (name, url))
+            conn.commit()
+            conn.close()
 
     def get_son4hane_for_device(self, birim, tip, seri):
         conn = sqlite3.connect(DB_FILE)
@@ -550,15 +692,32 @@ class MainWindow:
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
         try:
+            # Aynı birim, seri, son4hane başka bir cihaz tipine kayıtlı mı?
+            cursor.execute("""
+                SELECT cihaz_tipi FROM cihaz_kayitlari
+                WHERE birim_adi = ? AND cihaz_seri = ? AND son_4_hane = ? AND cihaz_tipi != ?
+            """, (birim, seri, son4, tip))
+            existing_assignment = cursor.fetchone()
+            if existing_assignment:
+                messagebox.showerror(
+                    "Kayıt Hatası",
+                    f" '{existing_assignment[0]}' cihazı, '{seri}{son4}' seri numarasıyla zaten '{birim}' biriminde kayıtlı.\n"
+                    "Cihaz Tipi, Seri No ve Son 4 Haneyi verilerini tekrar kontrol edin."
+                )
+                return False
+
+            # Eski kontrol: Aynı cihaz başka bir birime kayıtlı mı?
             cursor.execute("""
                 SELECT birim_adi FROM cihaz_kayitlari
                 WHERE cihaz_tipi = ? AND cihaz_seri = ? AND son_4_hane = ? AND birim_adi != ?
             """, (tip, seri, son4, birim))
-            existing_assignment = cursor.fetchone()
-            if existing_assignment:
-                messagebox.showerror("Kayıt Hatası",
-                                   f"Bu Seri Numaralı cihaz ({seri}{son4}) \n zaten '{existing_assignment[0]}' birimine kayıtlı.\n"
-                                   "Girdiğiniz Son 4 Haneyi tekrar kontrol ediniz.")
+            existing_assignment_birim = cursor.fetchone()
+            if existing_assignment_birim:
+                messagebox.showerror(
+                    "Kayıt Hatası",
+                    f"Bu Seri Numaralı cihaz ({seri}{son4}) zaten '{existing_assignment_birim[0]}' birimine kayıtlı.\n"
+                    "Girdiğiniz Son 4 Haneyi tekrar kontrol ediniz."
+                )
                 return False
 
             cursor.execute("""
@@ -573,6 +732,39 @@ class MainWindow:
             return False
         finally:
             conn.close()
+
+    def kontrol_cihaz_kayit_cakisma(self, event=None):
+        if getattr(self, "cakisma_uyarildi", False):
+            return  # Zaten uyarı gösterildi, tekrar gösterme
+
+        birim = self.cmb_birim.get()
+        tip = self.cmb_device_type.get()
+        seri = self.cmb_device_serial.get()
+        son4 = self.cmb_son4hane.get().strip().upper()
+        if not (birim and tip and seri and son4 and len(son4) == 4):
+            return  # Tüm alanlar dolu değilse kontrol etme
+
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("""
+                SELECT birim_adi, cihaz_tipi FROM cihaz_kayitlari
+                WHERE cihaz_seri = ? AND son_4_hane = ? AND (birim_adi != ? OR cihaz_tipi != ?)
+            """, (seri, son4, birim, tip))
+            result = cursor.fetchone()
+            if result:
+                self.cakisma_uyarildi = True
+                messagebox.showerror(
+                    "Kayıt Çakışması",
+                    f"Bu Seri Numaralı cihaz ({seri}{son4}) zaten '{result[0]}' biriminde ve '{result[1]}' cihaz tipiyle kayıtlı.\n"
+                    "Cihaz Tipi, Seri No, Son 4 Hane ve Birim bilgilerini kontrol ediniz."
+                )
+                self.master.after(100, lambda: setattr(self, "cakisma_uyarildi", False))
+                self.master.focus()
+                return "break"
+        finally:
+            conn.close()
+
 
     def guncelle_dijital_saat(self):
         simdiki_zaman = datetime.now().strftime("%H:%M:%S")
@@ -613,12 +805,40 @@ class MainWindow:
     def on_seri_no_entered(self, event=None):
         new_serial = self.cmb_device_serial.get().strip().upper()
         if new_serial and new_serial not in self.device_serials:
-            self.device_serials.append(new_serial)
-            with open(DEVICES_SERIALS_FILE, "a", encoding="utf-8-sig") as f:
-                f.write(new_serial + "\n")
-            self.cmb_device_serial['values'] = self.device_serials
-            self.cmb_device_serial.set(new_serial)
-            self.on_birim_cihaz_secildi()
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR IGNORE INTO cihaz_serileri (cihaz_seri) VALUES (?)", (new_serial,))
+                conn.commit()
+                conn.close()
+                self.load_device_serials_from_db()
+                self.cmb_device_serial.set(new_serial)
+                self.on_birim_cihaz_secildi()
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Cihaz seri no eklenirken hata: {e}")
+
+    def on_device_type_entered(self, event=None):
+        new_device_type = self.cmb_device_type.get().strip().upper()
+        if new_device_type and new_device_type not in self.device_types:
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("INSERT OR IGNORE INTO cihaz_tipleri (cihaz_tipi) VALUES (?)", (new_device_type,))
+                conn.commit()
+                conn.close()
+                self.load_device_types_from_db()
+                self.cmb_device_type.set(new_device_type)
+                self.on_birim_cihaz_secildi()
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Cihaz tipi eklenirken hata: {e}")
+
+    def on_device_type_selected(self, event=None):
+        selected_type = self.cmb_device_type.get()
+        self.save_setting("last_selected_device_type", selected_type)
+
+    def on_device_serial_selected(self, event=None):
+        selected_serial = self.cmb_device_serial.get()
+        self.save_setting("last_selected_serial_no", selected_serial)
 
     def validate_son4hane_input(self, event=None):
         content = self.cmb_son4hane.get().upper()
@@ -703,9 +923,13 @@ class MainWindow:
         self.txt_l3.grid(row=0, column=5, padx=5, pady=5)
         self.l_entry_tooltips["l3_entry"] = ToolTip(self.txt_l3, "Seviye 3 (L3) Değeri 252-396 arası olmalı")
 
+
         ttk.Button(frm_kalite_input, text="Tabloya Aktar", command=self.tabloya_aktar_kalite).grid(row=0, column=6, padx=20, pady=5)
 
-        columns_kalite = ("No", "Tarih", "Cihaz Tipi - Marka", "Cihaz Seri No", "L1", "L2", "L3", "Glukometrenin Geldiği Birim", "Bir Sonraki Gelinecek Tarih")
+        columns_kalite = (
+            "No", "Tarih", "Cihaz Tipi - Marka", "Cihaz Seri No", "L1", "L2", "L3",
+            "Glukometrenin Geldiği Birim", "Bir Sonraki Gelinecek Tarih"
+        )
         self.tree_kalite = ttk.Treeview(self.tab1, columns=columns_kalite, show="headings", selectmode="extended")
         self.tree_kalite.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
 
@@ -715,7 +939,7 @@ class MainWindow:
         hsb_kalite.grid(row=3, column=0, sticky='ew', padx=(10,10))
         self.tree_kalite.configure(yscrollcommand=vsb_kalite.set, xscrollcommand=hsb_kalite.set)
 
-        widths_kalite = [30, 80, 150, 120, 40, 40, 40, 150, 120]
+        widths_kalite = [20, 50, 150, 80, 30, 30, 30, 200, 140] # Sütun genişlikleri
         for col, w in zip(columns_kalite, widths_kalite):
             self.tree_kalite.heading(col, text=col, command=lambda c=col: self.treeview_sort_column(self.tree_kalite, c, False))
             self.tree_kalite.column(col, width=w, anchor=tk.CENTER, minwidth=w)
@@ -763,7 +987,7 @@ class MainWindow:
         self.tree_yuzde.configure(yscrollcommand=vsb_yuzde.set, xscrollcommand=hsb_yuzde.set)
         self.tree_yuzde.tag_configure('high_deviation_tree', background='red', foreground='white')
 
-        widths_yuzde = [30, 80, 150, 120, 100, 80, 80, 150, 120]
+        widths_yuzde = [20, 50, 155, 80, 100, 70, 70, 150, 120]
         for col, w in zip(columns_yuzde, widths_yuzde):
             self.tree_yuzde.heading(col, text=col, command=lambda c=col: self.treeview_sort_column(self.tree_yuzde, c, False))
             self.tree_yuzde.column(col, width=w, anchor=tk.CENTER, minwidth=w)
@@ -1079,10 +1303,19 @@ class MainWindow:
             if yeni_birim in self.birimler:
                 messagebox.showwarning("Uyarı", "Birim zaten mevcut!", parent=top)
                 return
-            self.birimler.append(yeni_birim)
-            self.save_birimler()
-            self.cmb_birim.set(yeni_birim)
-            top.destroy()
+
+            # Veritabanına ekle
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO birimler (birim_adi) VALUES (?)", (yeni_birim,))
+                conn.commit()
+                conn.close()
+                self.load_birimler_from_db() # Verileri yeniden yükle
+                self.cmb_birim.set(yeni_birim)
+                top.destroy()
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Birim eklenirken hata: {e}", parent=top)
 
         def on_key_release(event):
             current = entry.get()
@@ -1120,15 +1353,20 @@ class MainWindow:
             messagebox.showwarning("Uyarı", "Silinecek birim seçiniz!")
             return
         if messagebox.askokcancel("Onay", f"'{secilen}' birimini silmek istediğinize emin misiniz?"):
-            if secilen in self.birimler:
-                self.birimler.remove(secilen)
-                self.save_birimler()
+            # Veritabanından sil
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM birimler WHERE birim_adi = ?", (secilen,))
+                conn.commit()
+                conn.close()
+                self.load_birimler_from_db() # Verileri yeniden yükle
                 if self.birimler:
                     self.cmb_birim.current(0)
                 else:
                     self.cmb_birim.set("")
-            else:
-                messagebox.showerror("Hata", "Seçilen birim listede bulunamadı.")
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Birim silinirken hata: {e}")
 
     def genel_alan_kontrol(self):
         birim = self.cmb_birim.get()
