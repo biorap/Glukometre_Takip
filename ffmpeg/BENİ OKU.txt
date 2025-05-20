@@ -1,1 +1,3 @@
-Dahili İnternet Radyosu (etkin olması için https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest adresinden "ffmpeg-n7.1-latest-win64-gpl-" dosyasını indirip, zip dosyasının içeriğini, programın çalıştığı dizin içerisinde ffmpeg klasörü içerisine atın)
+Dahili Ä°nternet Radyosu (etkin olmasÄ± iÃ§in https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest 
+adresinden "ffmpeg-n7.1-latest-win64-gpl-" dosyasÄ±nÄ± indirip zip dosyasÄ±nÄ±n iÃ§eriÄŸini, 
+programÄ±n Ã§alÄ±ÅŸtÄ±ÄŸÄ± dizin iÃ§erisinde ffmpeg klasÃ¶rÃ¼ iÃ§erisine atÄ±n)
