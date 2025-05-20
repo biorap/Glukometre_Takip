@@ -1,0 +1,1 @@
+Dahili Ýnternet Radyosu (etkin olmasý için https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest adresinden "ffmpeg-n7.1-latest-win64-gpl-" dosyasýný indirip, zip dosyasýnýn içeriðini, programýn çalýþtýðý dizin içerisinde ffmpeg klasörü içerisine atýn)
