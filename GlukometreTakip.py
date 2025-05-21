@@ -160,10 +160,44 @@ class MainWindow:
         ToolTip(self.btn_birim_sil, "Seçili birimi silmek için tıklayınız.")
 
         ttk.Label(self.frm_glukometre_genel, text="Cihaz Tipi - Marka:").pack(fill="x", padx=5, pady=(5,0))
-        self.cmb_device_type = ttk.Combobox(self.frm_glukometre_genel)
+        self.cmb_device_type = ttk.Combobox(self.frm_glukometre_genel, state="readonly")
         self.cmb_device_type.pack(fill="x", padx=5, pady=(0,5))
-        self.cmb_device_type.bind("<FocusOut>", self.on_device_type_entered) # Klavyeden giriş için
-        self.cmb_device_type.bind("<Return>", self.on_device_type_entered) # Enter tuşu için
+        self.cmb_device_type.bind("<<ComboboxSelected>>", self.on_device_type_selected)
+
+        # device_type_buttons Frame'ini ekle
+        frm_device_type_buttons = ttk.Frame(self.frm_glukometre_genel)
+        frm_device_type_buttons.pack(fill="x", padx=5, pady=(0,10))
+
+        # Butonları oluştur ve ikonları ekle
+        if self.plus_icon:
+            btn_device_type_ekle = ttk.Button(frm_device_type_buttons, 
+                                            text="Cihaz Markası Ekle", 
+                                            image=self.plus_icon, 
+                                            compound=tk.LEFT, 
+                                            command=self.cihaz_markasi_ekle_pencere)
+        else:
+            btn_device_type_ekle = ttk.Button(frm_device_type_buttons, 
+                                            text="Cihaz Markası Ekle", 
+                                            command=self.cihaz_markasi_ekle_pencere)
+        self.btn_device_type_ekle = btn_device_type_ekle
+        btn_device_type_ekle.pack(side="left", fill="x", expand=True, padx=(0,2))
+        ToolTip(self.btn_device_type_ekle, "Yeni bir cihaz markası eklemek için tıklayınız.")
+
+        if self.minus_icon:
+            btn_device_type_sil = ttk.Button(frm_device_type_buttons, 
+                                            text="Cihaz Markası Sil", 
+                                            image=self.minus_icon, 
+                                            compound=tk.LEFT, 
+                                            command=self.cihaz_markasi_sil)
+        else:
+            btn_device_type_sil = ttk.Button(frm_device_type_buttons, 
+                                            text="Cihaz Markası Sil", 
+                                            command=self.cihaz_markasi_sil)
+        self.btn_device_type_sil = btn_device_type_sil
+        btn_device_type_sil.pack(side="left", fill="x", expand=True, padx=(2,0))
+        ToolTip(self.btn_device_type_sil, "Seçili cihaz markasını silmek için tıklayınız.")
+
+
 
         frm_seri_no_container = ttk.Frame(self.frm_glukometre_genel)
         frm_seri_no_container.pack(fill="x", padx=0, pady=0)
@@ -171,10 +205,8 @@ class MainWindow:
         frm_seri_no_sol.pack(side="left", fill="x", expand=True, padx=(5,2), pady=(0,5))
         
         ttk.Label(frm_seri_no_sol, text="Cihaz Seri No:").pack(fill="x")
-        self.cmb_device_serial = ttk.Combobox(frm_seri_no_sol)
+        self.cmb_device_serial = ttk.Combobox(frm_seri_no_sol, state="readonly")
         self.cmb_device_serial.pack(fill="x")
-        self.cmb_device_serial.bind("<Return>", self.on_seri_no_entered)
-        self.cmb_device_serial.bind("<FocusOut>", self.on_seri_no_entered)
 
         frm_seri_no_sag = ttk.Frame(frm_seri_no_container)
         frm_seri_no_sag.pack(side="left", fill="x", expand=True, padx=(2,5), pady=(0,5))
@@ -517,9 +549,16 @@ class MainWindow:
         # Cihaz Serileri Tablosu
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS cihaz_serileri (
-                cihaz_seri TEXT PRIMARY KEY
+                cihaz_seri TEXT PRIMARY KEY,
+                cihaz_tipi TEXT NOT NULL
             )
         """)
+
+        # Mevcut tabloya sütun ekleme (eğer varsa)
+        try:
+            cursor.execute("ALTER TABLE cihaz_serileri ADD COLUMN cihaz_tipi TEXT")
+        except sqlite3.OperationalError:
+            pass  # Sütun zaten var
 
         # Radyolar Tablosu
         cursor.execute("""
@@ -549,6 +588,7 @@ class MainWindow:
         self.load_device_types_from_db()
         self.load_device_serials_from_db()
         self.load_radio_stations_from_db()
+        #self.load_seri_no_ekle(event=None) 
 
     def load_birimler_from_db(self):
         conn = sqlite3.connect(DB_FILE)
@@ -578,19 +618,45 @@ class MainWindow:
 
 
     def load_device_serials_from_db(self):
+        # Seçili cihaz tipini al
+        selected_type = self.cmb_device_type.get()
+        
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
-        cursor.execute("SELECT cihaz_seri FROM cihaz_serileri")
-        results = cursor.fetchall()
-        self.device_serials = sorted([row[0] for row in results], key=locale.strxfrm)
-        conn.close()
-        self.cmb_device_serial['values'] = self.device_serials
+        try:
+            if selected_type:
+                # Seçili cihaz tipine ait seri numaralarını getir
+                cursor.execute("""
+                    SELECT cihaz_seri 
+                    FROM cihaz_serileri 
+                    WHERE cihaz_tipi = ?
+                    """, (selected_type,))
+            else:
+                # Hiçbir cihaz tipi seçili değilse tüm seri numaralarını getir
+                cursor.execute("SELECT cihaz_seri FROM cihaz_serileri")
+                
+            results = cursor.fetchall()
+            self.device_serials = sorted([row[0] for row in results], key=locale.strxfrm)
+            self.cmb_device_serial['values'] = self.device_serials
+            
+            # Combobox'ı güncelle
+            if self.device_serials:
+                self.cmb_device_serial.current(0)
+            else:
+                self.cmb_device_serial.set("")
+                
+        except sqlite3.Error as e:
+            messagebox.showerror("Veritabanı Hatası", f"Seri numaraları yüklenirken hata: {e}")
+        finally:
+            conn.close()
 
-        last_serial = self.load_setting("last_selected_serial_no")
-        if last_serial and last_serial in self.device_serials:
-            self.cmb_device_serial.set(last_serial)
+        default_serial = "BG709223125"
+        if default_serial in self.device_serials:
+            self.cmb_device_serial.set(default_serial)
+        elif self.device_serials:
+            self.cmb_device_serial.current(0) # Eğer "BG709223125" yoksa ilk değeri seç
         else:
-            self.cmb_device_serial.set("")
+            self.cmb_device_serial.set("") # Eğer hiç veri yoksa boş bırak
 
     def load_radio_stations_from_db(self):
         conn = sqlite3.connect(DB_FILE)
@@ -760,24 +826,11 @@ class MainWindow:
             except sqlite3.Error as e:
                 messagebox.showerror("Veritabanı Hatası", f"Cihaz seri no eklenirken hata: {e}")
 
-    def on_device_type_entered(self, event=None):
-        new_device_type = self.cmb_device_type.get().strip().upper()
-        if new_device_type and new_device_type not in self.device_types:
-            try:
-                conn = sqlite3.connect(DB_FILE)
-                cursor = conn.cursor()
-                cursor.execute("INSERT OR IGNORE INTO cihaz_tipleri (cihaz_tipi) VALUES (?)", (new_device_type,))
-                conn.commit()
-                conn.close()
-                self.load_device_types_from_db()
-                self.cmb_device_type.set(new_device_type)
-                self.on_birim_cihaz_secildi()
-            except sqlite3.Error as e:
-                messagebox.showerror("Veritabanı Hatası", f"Cihaz tipi eklenirken hata: {e}")
-
     def on_device_type_selected(self, event=None):
         selected_type = self.cmb_device_type.get()
         self.save_setting("last_selected_device_type", selected_type)
+        # Cihaz tipi değiştiğinde seri numaralarını güncelle
+        self.load_device_serials_from_db()
 
     def on_device_serial_selected(self, event=None):
         selected_serial = self.cmb_device_serial.get()
@@ -977,8 +1030,9 @@ class MainWindow:
         menubar.add_cascade(label="Dosya", menu=menu_dosya)
 
         menu_cihaz_takip = tk.Menu(menubar, tearoff=0)
+        menu_cihaz_takip.add_command(label="Cihaz Ara", command=self.open_cihaz_arama_dialog)
         menu_cihaz_takip.add_command(label="Cihaz Ekle/Sil", command=self.open_cihaz_ekle_sil_dialog)
-        menu_cihaz_takip.add_command(label="Cihaz Değişim Formu Oluştur") # TODO: Fonksiyon eklenecek
+        menu_cihaz_takip.add_command(label="Cihaz Değişim Formu Oluştur")
         menubar.add_cascade(label="Cihaz Takibi", menu=menu_cihaz_takip)
 
         menu_kalite_kontrol = tk.Menu(menubar, tearoff=0)
@@ -1008,10 +1062,239 @@ class MainWindow:
         self.master.bind('<Control-h>', lambda event: self.open_calculator())
         self.master.bind('<Control-t>', lambda event: self.open_calendar())
 
+    def cihaz_markasi_ekle_pencere(self):
+        def tamam_click():
+            yeni_cihaz = entry.get().strip().upper()
+            if not yeni_cihaz:
+                messagebox.showwarning("Uyarı", "Cihaz adı boş olamaz!", parent=top)
+                return
+            
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO cihaz_tipleri (cihaz_tipi) VALUES (?)", (yeni_cihaz,))
+                conn.commit()
+                conn.close()
+                self.load_device_types_from_db()
+                self.cmb_device_type.set(yeni_cihaz)
+                top.destroy()
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Cihaz markası eklenirken hata: {e}", parent=top)
+
+        def on_key_release(event):
+            current = entry.get()
+            entry.delete(0, tk.END)
+            entry.insert(0, current.upper())
+
+        top = tk.Toplevel(self.master)
+        top.title("Cihaz Markası Ekle")
+        top.geometry("350x130")
+        top.resizable(False, False)
+        top.transient(self.master)
+        top.grab_set()
+
+        if self.plus_icon:
+            top.iconbitmap(os.path.join(os.path.dirname(os.path.abspath(__file__)), "Resources", "plus.ico"))
+
+        ttk.Label(top, text="Yeni Cihaz Markası:").pack(pady=10)
+        entry = ttk.Entry(top, width=40)
+        entry.insert(0, "GLUKOMETRE-")
+        entry.pack(pady=5)
+        entry.bind("<KeyRelease>", on_key_release)
+        ttk.Button(top, text="Tamam", command=tamam_click).pack(pady=15)
+        
+        entry.focus_set()
+        entry.icursor(tk.END)  # İmleci en sona konumlandır
+        
+        # Pencereyi ortala
+        top.update_idletasks()
+        width = top.winfo_width()
+        height = top.winfo_height()
+        x = (top.winfo_screenwidth() // 2) - (width // 2)
+        y = (top.winfo_screenheight() // 2) - (height // 2)
+        top.geometry(f"{width}x{height}+{x}+{y}")
+        top.wait_window()
+
+    def cihaz_markasi_sil(self):
+        secilen = self.cmb_device_type.get()
+        if not secilen:
+            messagebox.showwarning("Uyarı", "Silinecek cihaz markasını seçiniz!")
+            return
+                
+        if messagebox.askokcancel("Onay", f"'{secilen}' cihaz markasını silmek istediğinize emin misiniz?"):
+            try:
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM cihaz_tipleri WHERE cihaz_tipi = ?", (secilen,))
+                conn.commit()
+                conn.close()
+                self.load_device_types_from_db()
+                if self.device_types:
+                    self.cmb_device_type.current(0)
+                else:
+                    self.cmb_device_type.set("")
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Cihaz markası silinirken hata: {e}")
+
+    def open_cihaz_arama_dialog(self):
+        dialog = tk.Toplevel(self.master)
+        dialog.title("Cihaz Arama")
+        dialog.geometry("800x500")
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            search_icon_path = os.path.join(script_dir, "Resources", "search.ico")
+            dialog.iconbitmap(search_icon_path)
+        except:
+            pass
+
+        # Ana Frame
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill="both", expand=True)
+
+        # Arama Kriterleri Frame
+        search_frame = ttk.LabelFrame(main_frame, text="Arama Kriterleri", padding="10")
+        search_frame.pack(fill="x", padx=5, pady=(0,10))
+
+        # Comboboxlar için Frame
+        criteria_frame = ttk.Frame(search_frame)
+        criteria_frame.pack(fill="x", expand=True)
+
+        # Grid düzeni için column ağırlıkları
+        criteria_frame.columnconfigure(1, weight=1)
+        criteria_frame.columnconfigure(3, weight=1)
+
+        # Birim Seçimi
+        ttk.Label(criteria_frame, text="Birim:").grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        cmb_birim_search = ttk.Combobox(criteria_frame, state="normal")
+        cmb_birim_search['values'] = self.birimler
+        cmb_birim_search.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+
+        # Cihaz Tipi Seçimi
+        ttk.Label(criteria_frame, text="Cihaz Tipi:").grid(row=1, column=0, padx=5, pady=5, sticky="e")
+        cmb_cihaz_tipi_search = ttk.Combobox(criteria_frame, state="normal")
+        cmb_cihaz_tipi_search['values'] = self.device_types
+        cmb_cihaz_tipi_search.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+
+        # Seri No Seçimi
+        ttk.Label(criteria_frame, text="Seri No:").grid(row=2, column=0, padx=5, pady=5, sticky="e")
+        cmb_seri_no_search = ttk.Combobox(criteria_frame, state="normal")
+        cmb_seri_no_search.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+
+        # Son 4 Hane
+        ttk.Label(criteria_frame, text="Son 4 Hane:").grid(row=3, column=0, padx=5, pady=5, sticky="e")
+        cmb_son4hane_search = ttk.Combobox(criteria_frame, state="normal")
+        cmb_son4hane_search.grid(row=3, column=1, padx=5, pady=5, sticky="ew")
+
+        # Sonuçlar için Treeview
+        columns = ("Birim", "Cihaz Tipi", "Seri No")  # Kayıt Tarihi sütununu kaldırdık
+        tree_results = ttk.Treeview(main_frame, columns=columns, show="headings", selectmode="browse")
+        tree_results.pack(fill="both", expand=True, pady=(0,10))
+
+        # Scrollbarlar
+        vsb = ttk.Scrollbar(main_frame, orient="vertical", command=tree_results.yview)
+        vsb.pack(side="right", fill="y")
+        hsb = ttk.Scrollbar(main_frame, orient="horizontal", command=tree_results.xview)
+        hsb.pack(side="bottom", fill="x")
+        tree_results.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+        # Tablo başlıkları ve genişlikleri - Tüm sütunları ortala
+        widths = [190, 170, 150]  # Genişlikleri uyarladık
+        for col, width in zip(columns, widths):
+            tree_results.heading(col, text=col, 
+                            command=lambda c=col: self.treeview_sort_column(tree_results, c, False))
+            tree_results.column(col, width=width, anchor=tk.CENTER, minwidth=width)  # anchor=tk.CENTER ile ortala
+
+        def update_results(search_type=None):
+            for item in tree_results.get_children():
+                tree_results.delete(item)
+
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+
+            try:
+                birim = cmb_birim_search.get().strip()
+                cihaz_tipi = cmb_cihaz_tipi_search.get().strip()
+                seri_no = cmb_seri_no_search.get().strip()
+                son4hane = cmb_son4hane_search.get().strip()
+
+                if birim and cihaz_tipi:
+                    # Birim ve Cihaz Tipi ile arama
+                    cursor.execute("""
+                        SELECT birim_adi, cihaz_tipi, cihaz_seri, son_4_hane
+                        FROM cihaz_kayitlari 
+                        WHERE birim_adi = ? AND cihaz_tipi = ?
+                        ORDER BY birim_adi, cihaz_tipi, cihaz_seri
+                    """, (birim, cihaz_tipi))
+                elif birim:
+                    cursor.execute("""
+                        SELECT birim_adi, cihaz_tipi, cihaz_seri, son_4_hane
+                        FROM cihaz_kayitlari 
+                        WHERE birim_adi = ?
+                        ORDER BY cihaz_tipi, cihaz_seri
+                    """, (birim,))
+                elif cihaz_tipi:
+                    cursor.execute("""
+                        SELECT birim_adi, cihaz_tipi, cihaz_seri, son_4_hane
+                        FROM cihaz_kayitlari 
+                        WHERE cihaz_tipi = ?
+                        ORDER BY birim_adi, cihaz_seri
+                    """, (cihaz_tipi,))
+                elif seri_no and son4hane:
+                    cursor.execute("""
+                        SELECT birim_adi, cihaz_tipi, cihaz_seri, son_4_hane
+                        FROM cihaz_kayitlari 
+                        WHERE cihaz_seri = ? AND son_4_hane = ?
+                        ORDER BY birim_adi, cihaz_tipi
+                    """, (seri_no, son4hane))
+
+                results = cursor.fetchall()
+                for row in results:
+                    birim_adi, cihaz_tipi, cihaz_seri, son4hane = row
+                    tam_seri_no = f"{cihaz_seri}{son4hane}"
+                    tree_results.insert("", "end", values=(birim_adi, cihaz_tipi, tam_seri_no))
+
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Arama yapılırken hata oluştu: {e}")
+            finally:
+                conn.close()
+
+        def on_birim_selected(event=None):
+            update_results("birim")
+        def on_cihaz_tipi_selected(event=None):
+            update_results("cihaz_tipi")
+        def on_seri_no_selected(event=None):
+            update_results("seri_no")
+        def on_son4hane_selected(event=None):
+            update_results("son4hane")
+
+        cmb_birim_search.bind('<<ComboboxSelected>>', on_birim_selected)
+        cmb_cihaz_tipi_search.bind('<<ComboboxSelected>>', on_cihaz_tipi_selected)
+        cmb_seri_no_search.bind('<<ComboboxSelected>>', on_seri_no_selected)
+        cmb_son4hane_search.bind('<<ComboboxSelected>>', on_son4hane_selected)
+
+        cmb_birim_search.bind('<KeyRelease>', on_birim_selected)
+        cmb_cihaz_tipi_search.bind('<KeyRelease>', on_cihaz_tipi_selected)
+        cmb_seri_no_search.bind('<KeyRelease>', on_seri_no_selected)
+        cmb_son4hane_search.bind('<KeyRelease>', on_son4hane_selected)
+
+        # Pencereyi ortala
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        x = (dialog.winfo_screenwidth() // 2) - (width // 2)
+        y = (dialog.winfo_screenheight() // 2) - (height // 2)
+        dialog.geometry(f'{width}x{height}+{x}+{y}')
+        
+        dialog.focus_set()
+        dialog.wait_window()
+
     def open_cihaz_ekle_sil_dialog(self):
         dialog = tk.Toplevel(self.master)
         dialog.title("Cihaz Ekle / Sil")
-        dialog.geometry("800x400")  # Boyutları ayarlayabilirsiniz
+        dialog.geometry("800x250")
         dialog.transient(self.master)
         dialog.grab_set()
 
@@ -1048,7 +1331,7 @@ class MainWindow:
         self.cmb_birim_sil.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
 
         # 2 - Cihaz Combobox (Sil)
-        ttk.Label(sil_frame, text="Cihaz:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(sil_frame, text="Cihaz Tipi - Marka:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.cmb_cihaz_sil = ttk.Combobox(sil_frame, state="readonly")
         self.cmb_cihaz_sil.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
 
@@ -1181,48 +1464,27 @@ class MainWindow:
             self.cmb_birim_ekle.current(0)
         self.cmb_birim_ekle.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
 
-        # 2 - Cihaz Textbox
-        ttk.Label(ekle_frame, text="Cihaz:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
-        self.cihaz_text = tk.StringVar(value="GLUKOMETRE-")
-        self.txt_cihaz_ekle = ttk.Entry(ekle_frame, textvariable=self.cihaz_text)
-        self.txt_cihaz_ekle.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        # 2 - Cihaz Combobox
+        ttk.Label(ekle_frame, text="Cihaz Tipi - Marka:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.cmb_cihaz_ekle = ttk.Combobox(ekle_frame, state="readonly")
+        self.cmb_cihaz_ekle['values'] = self.device_types  # Veritabanından cihaz tipleri
+        if self.device_types:
+            self.cmb_cihaz_ekle.current(0)
+        self.cmb_cihaz_ekle.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        self.cmb_cihaz_ekle.bind("<<ComboboxSelected>>", self.load_seri_no_ekle) # Cihaz tipi seçimi değişince seri numaralarını yükle
 
-        def cihaz_text_validate(new_text):
-            if new_text.startswith("GLUKOMETRE-"):
-                return True
-            return False
-
-        def cihaz_text_change(event):
-            current_text = self.txt_cihaz_ekle.get()
-            if not current_text.startswith("GLUKOMETRE-"):
-                self.txt_cihaz_ekle.delete(0, tk.END)
-                self.txt_cihaz_ekle.insert(0, "GLUKOMETRE-")
-                current_text = "GLUKOMETRE-"
-            after_prefix = current_text[len("GLUKOMETRE-"):].upper()
-            self.txt_cihaz_ekle.delete(len("GLUKOMETRE-"), tk.END)
-            self.txt_cihaz_ekle.insert(len("GLUKOMETRE-"), after_prefix)
-
-        self.txt_cihaz_ekle.bind("<KeyRelease>", cihaz_text_change)
-        cihaz_vcmd = (dialog.register(cihaz_text_validate), '%P')
-        self.txt_cihaz_ekle.config(validate="key", validatecommand=cihaz_vcmd)
-
-        # 3 - Seri No Textbox
+        # 3 - Seri No Combobox
         ttk.Label(ekle_frame, text="Seri No:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
-        self.txt_seri_no_ekle = ttk.Entry(ekle_frame)
-        self.txt_seri_no_ekle.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        self.cmb_seri_no_ekle = ttk.Combobox(ekle_frame, state="normal") # state normal olacak
+        self.cmb_seri_no_ekle.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
 
         def seri_no_validate(new_text):
             return all(c.isalnum() for c in new_text)
-
-        seri_no_vcmd = (dialog.register(seri_no_validate), '%P')
-        self.txt_seri_no_ekle.config(validate="key", validatecommand=seri_no_vcmd)
 
         def seri_no_change(event):
             current_text = self.txt_seri_no_ekle.get()
             self.txt_seri_no_ekle.delete(0, tk.END)
             self.txt_seri_no_ekle.insert(0, current_text.upper())
-
-        self.txt_seri_no_ekle.bind("<KeyRelease>", seri_no_change)
 
         # 4 - Son 4 Hane Textbox
         ttk.Label(ekle_frame, text="Son 4 Hane:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
@@ -1245,8 +1507,8 @@ class MainWindow:
         # 5 - Cihaz Ekle Butonu
         def cihaz_ekle_click():
             birim = self.cmb_birim_ekle.get()
-            cihaz = self.txt_cihaz_ekle.get()
-            seri_no = self.txt_seri_no_ekle.get()
+            cihaz = self.cmb_cihaz_ekle.get()
+            seri_no = self.cmb_seri_no_ekle.get() # Textbox yerine combobox'tan al
             son4hane = self.txt_son4hane_ekle.get()
 
             if not (birim and cihaz and seri_no and son4hane):
@@ -1255,10 +1517,16 @@ class MainWindow:
 
             conn = sqlite3.connect(DB_FILE)
             cursor = conn.cursor()
+
             try:
                 # Veritabanına kayıt işlemleri
-                cursor.execute("INSERT OR IGNORE INTO cihaz_tipleri (cihaz_tipi) VALUES (?)", (cihaz,))
-                cursor.execute("INSERT OR IGNORE INTO cihaz_serileri (cihaz_seri) VALUES (?)", (seri_no,))
+                cursor.execute("SELECT cihaz_seri FROM cihaz_serileri WHERE cihaz_seri = ? AND cihaz_tipi = ?", (seri_no, cihaz))
+                existing_serial = cursor.fetchone()
+
+                if existing_serial:                    
+                    pass # Seri numarası zaten varsa, bu satırı atla
+                else:
+                    cursor.execute("INSERT OR IGNORE INTO cihaz_serileri (cihaz_seri, cihaz_tipi) VALUES (?, ?)", (seri_no, cihaz))
                 cursor.execute("""
                     INSERT INTO cihaz_kayitlari (birim_adi, cihaz_tipi, cihaz_seri, son_4_hane)
                     VALUES (?, ?, ?, ?)
@@ -1268,7 +1536,7 @@ class MainWindow:
                 self.load_device_types_from_db()
                 self.load_device_serials_from_db()
                 self.on_birim_cihaz_secildi()
-                dialog.destroy()
+                dialog.destroy() # Ekleme başarılıysa pencereyi kapat
             except sqlite3.Error as e:
                 messagebox.showerror("Veritabanı Hatası", f"Cihaz eklenirken hata: {e}")
             finally:
@@ -1285,6 +1553,24 @@ class MainWindow:
         dialog.geometry(f"{width}x{height}+{x}+{y}")
         dialog.focus_set()
         dialog.wait_window()
+
+    def load_seri_no_ekle(self, event=None):
+        cihaz_tipi = self.cmb_cihaz_ekle.get()
+        if not cihaz_tipi:
+            self.cmb_seri_no_ekle['values'] = []
+            return
+
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute("SELECT cihaz_seri FROM cihaz_serileri WHERE cihaz_tipi = ?", (cihaz_tipi,))
+        seri_numaralari = [row[0] for row in cursor.fetchall()]
+        conn.close()
+
+        self.cmb_seri_no_ekle['values'] = seri_numaralari
+        if seri_numaralari:
+            self.cmb_seri_no_ekle.current(0)
+        else:
+            self.cmb_seri_no_ekle.set("")
 
     def hbtc_formu_olustur(self):
         if not PYTHON_DOCX_AVAILABLE:
@@ -2438,7 +2724,7 @@ Son Güncelleme: 19 Mayıs 2025
         return names, name_url_map
 
     def play_radio_command(self):
-        self.play_radio() # Calls play_radio which will use the current volume
+        self.play_radio()
 
     def play_radio(self, volume_level=None):
         selected_name = self.cmb_radyo.get()
@@ -2472,7 +2758,7 @@ Son Güncelleme: 19 Mayıs 2025
             self.radio_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                                                   startupinfo=startupinfo, creationflags=creation_flags)
             self.update_radio_button_states(playing=True)
-            self.start_marquee(selected_name) # Radyo çalmaya başlayınca marquee'yi başlat
+            self.start_marquee(selected_name)
         except FileNotFoundError:
             messagebox.showerror("Radyo", 
                            "ffplay bulunamadı!\n"
@@ -2492,8 +2778,8 @@ Son Güncelleme: 19 Mayıs 2025
             except Exception as e: print(f"Radyo durdurulurken hata: {e}")
             finally: self.radio_process = None
         self.update_radio_button_states(playing=False)
-        self.stop_marquee() # Radyo durunca marquee'yi durdur
-        self.lbl_volume_percent.config(text="") # Radyo durunca label'ı temizle
+        self.stop_marquee()
+        self.lbl_volume_percent.config(text="")
 
     def open_bmi_calculation_dialog(self):
         dialog = tk.Toplevel(self.master)
