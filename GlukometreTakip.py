@@ -8,7 +8,7 @@ import sqlite3
 import subprocess
 import glob
 import sys
-from PIL import ImageTk, Image # Bu satırı ekleyin
+from PIL import ImageTk, Image
 from tkcalendar import Calendar
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Color
@@ -24,7 +24,7 @@ except ImportError:
     PYTHON_DOCX_AVAILABLE = False
     print("Uyarı: Word formu oluşturma için 'python-docx' kütüphanesi bulunamadı. 'pip install python-docx' ile kurabilirsiniz.")
 
-# Türkçe alfabetik sıralama için locale kütüphanesi
+# Tablolarda Türkçe alfabetik sıralama için locale kütüphanesi
 try:
     locale.setlocale(locale.LC_COLLATE, 'tr_TR.UTF-8')
 except locale.Error:
@@ -37,7 +37,7 @@ except locale.Error:
 BACKUP_DIR = "Yedeklenmis Veriler" # .csv Yedekleme dizini
 EXCEL_OUTPUT_DIR = "Excel'e Aktarılanlar" # Excel çıktıları için çıktı klasörü
 WORD_FORMS_DIR = "HBTC Kalite Kontrol" # Word formları için çıktı klasörü
-SABLONLAR_DIR = "Sablonlar"
+SABLONLAR_DIR = "Sablonlar" # Word ve Excel çıktıları için şablon klasörü
 
 # Veri dosyaları
 HBTC_TEMPLATE_FILE = "HBTC_KALITE_KONTROL_FORMU.docx"
@@ -119,11 +119,9 @@ class MainWindow:
 
         # İkonları yükle
         try:
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            
+            script_dir = os.path.dirname(os.path.abspath(__file__))            
             plus_icon_path = os.path.join(script_dir, "Resources", "plus.ico")
             minus_icon_path = os.path.join(script_dir, "Resources", "minus.ico")
-
             if not os.path.exists(plus_icon_path):
                 raise FileNotFoundError(f"Plus ikonu bulunamadı: {plus_icon_path}")
             if not os.path.exists(minus_icon_path):
@@ -149,7 +147,7 @@ class MainWindow:
             btn_birim_ekle = ttk.Button(frm_birim_buttons, text="Birim Ekle", image=self.plus_icon, compound=tk.LEFT, command=self.birim_ekle_pencere)
         else:
             btn_birim_ekle = ttk.Button(frm_birim_buttons, text="Birim Ekle", command=self.birim_ekle_pencere)
-        self.btn_birim_ekle = btn_birim_ekle # self eklenerek sınıf değişkeni yapıldı
+        self.btn_birim_ekle = btn_birim_ekle
         btn_birim_ekle.pack(side="left", fill="x", expand=True, padx=(0,2))
         ToolTip(self.btn_birim_ekle, "Yeni bir birim eklemek için tıklayınız.")
 
@@ -157,12 +155,12 @@ class MainWindow:
             btn_birim_sil = ttk.Button(frm_birim_buttons, text="Birim Sil", image=self.minus_icon, compound=tk.LEFT, command=self.birim_sil)
         else:
             btn_birim_sil = ttk.Button(frm_birim_buttons, text="Birim Sil", command=self.birim_sil)
-        self.btn_birim_sil = btn_birim_sil # self eklenerek sınıf değişkeni yapıldı
+        self.btn_birim_sil = btn_birim_sil
         btn_birim_sil.pack(side="left", fill="x", expand=True, padx=(2,0))
         ToolTip(self.btn_birim_sil, "Seçili birimi silmek için tıklayınız.")
 
         ttk.Label(self.frm_glukometre_genel, text="Cihaz Tipi - Marka:").pack(fill="x", padx=5, pady=(5,0))
-        self.cmb_device_type = ttk.Combobox(self.frm_glukometre_genel) # state="readonly" kaldırıldı
+        self.cmb_device_type = ttk.Combobox(self.frm_glukometre_genel)
         self.cmb_device_type.pack(fill="x", padx=5, pady=(0,5))
         self.cmb_device_type.bind("<FocusOut>", self.on_device_type_entered) # Klavyeden giriş için
         self.cmb_device_type.bind("<Return>", self.on_device_type_entered) # Enter tuşu için
@@ -171,6 +169,7 @@ class MainWindow:
         frm_seri_no_container.pack(fill="x", padx=0, pady=0)
         frm_seri_no_sol = ttk.Frame(frm_seri_no_container)
         frm_seri_no_sol.pack(side="left", fill="x", expand=True, padx=(5,2), pady=(0,5))
+        
         ttk.Label(frm_seri_no_sol, text="Cihaz Seri No:").pack(fill="x")
         self.cmb_device_serial = ttk.Combobox(frm_seri_no_sol)
         self.cmb_device_serial.pack(fill="x")
@@ -188,9 +187,8 @@ class MainWindow:
         self.cmb_son4hane.bind("<KeyRelease>", self.validate_son4hane_input)
 
         self.frm_radyo = ttk.LabelFrame(self.frm_sol_panel, text="Radyo", style="Radyo.TLabelframe")
-        self.frm_radyo.pack(side="bottom", fill="x", padx=5, pady=(0,5)) # pack side bottom
+        self.frm_radyo.pack(side="bottom", fill="x", padx=5, pady=(0,5))
 
-        #ttk.Label(self.frm_radyo, text="Radyo İstasyonu:").pack(fill="x", padx=5, pady=(5,0))
         self.cmb_radyo = ttk.Combobox(self.frm_radyo, state="readonly")
         self.radio_station_names, self.radio_station_map = self.load_radio_stations_from_db()
         ttk.Label(self.frm_radyo, text="Radyo İstasyonu:").pack(fill="x", padx=5, pady=(5,0))
@@ -199,11 +197,11 @@ class MainWindow:
         last_radio_station = self.load_setting("last_radio_station")
         if last_radio_station and last_radio_station in self.radio_station_names:
             self.cmb_radyo.set(last_radio_station)
-        elif self.radio_station_names: # Eğer liste boş değilse
+        elif self.radio_station_names:
             self.cmb_radyo.current(0)
 
-        self.load_radio_stations_from_db() # Çağrı şekli değiştirildi
-        self.cmb_radyo.pack(fill="x", padx=5, pady=(0,5)) # Şimdi combobox'ı paketleyin
+        self.load_radio_stations_from_db()
+        self.cmb_radyo.pack(fill="x", padx=5, pady=(0,5))
         last_radio_station = self.load_setting("last_radio_station")
         if last_radio_station and last_radio_station in self.radio_station_names:
             self.cmb_radyo.set(last_radio_station)
@@ -213,24 +211,19 @@ class MainWindow:
         frm_radyo_controls = ttk.Frame(self.frm_radyo)
         frm_radyo_controls.pack(fill="x", padx=5, pady=(0,10))
 
-        # İkonları yükle
+        # Play ve Stop ikonlarını yükle
         try:
             # Betiğin bulunduğu dizini al
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            
-            # İkon dosyalarının tam yollarını oluştur
             play_icon_path = os.path.join(script_dir, "Resources", "play.ico")
             stop_icon_path = os.path.join(script_dir, "Resources", "stop.ico")
-
             if not os.path.exists(play_icon_path):
                 raise FileNotFoundError(f"Play ikonu bulunamadı: {play_icon_path}")
             if not os.path.exists(stop_icon_path):
                 raise FileNotFoundError(f"Stop ikonu bulunamadı: {stop_icon_path}")
-
             # İkonları Pillow ile aç ve PhotoImage nesnesine dönüştür
             play_image = Image.open(play_icon_path)
             self.play_icon = ImageTk.PhotoImage(play_image)
-
             stop_image = Image.open(stop_icon_path)
             self.stop_icon = ImageTk.PhotoImage(stop_image)
 
@@ -248,14 +241,12 @@ class MainWindow:
             self.btn_radyo_play = ttk.Button(frm_radyo_controls, text="Play", image=self.play_icon, compound=tk.LEFT, command=self.play_radio_command)
         else:
             self.btn_radyo_play = ttk.Button(frm_radyo_controls, text="Play", command=self.play_radio_command)
-
         self.btn_radyo_play.grid(row=0, column=0, sticky="ew", padx=(0,1))
 
         if self.stop_icon:
             self.btn_radyo_stop = ttk.Button(frm_radyo_controls, text="Stop", image=self.stop_icon, compound=tk.LEFT, command=self.stop_radio)
         else:
             self.btn_radyo_stop = ttk.Button(frm_radyo_controls, text="Stop", command=self.stop_radio)
-
         self.btn_radyo_stop.grid(row=0, column=1, sticky="ew", padx=(1,0))
 
         self.radio_volume = tk.IntVar(value=50)
@@ -272,8 +263,6 @@ class MainWindow:
         try:
             # Betiğin bulunduğu dizini al
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            
-            # İkon dosyalarının tam yollarını oluştur
             mute_icon_path = os.path.join(script_dir, "Resources", "mute.ico")
             loud_icon_path = os.path.join(script_dir, "Resources", "loud.ico")
 
@@ -282,7 +271,6 @@ class MainWindow:
             if not os.path.exists(loud_icon_path):
                 raise FileNotFoundError(f"Loud ikonu bulunamadı: {loud_icon_path}")
 
-            # İkonları Pillow ile aç ve PhotoImage nesnesine dönüştür
             mute_image = Image.open(mute_icon_path)
             self.mute_icon = ImageTk.PhotoImage(mute_image)
 
@@ -317,13 +305,12 @@ class MainWindow:
         self.is_muted = False
         self.previous_volume = self.radio_volume.get() # Başlangıçta mevcut ses seviyesini sakla
 
-        # Dijital Saat en altta olacak
         self.lbl_dijital_saat = tk.Label(self.frm_sol_panel, text="", font=("Arial", 16, "bold"),
                                           background=self.renk_saat_bg, foreground=self.renk_saat_fg,
                                           relief="sunken", borderwidth=2)
         self.lbl_dijital_saat.pack(side="bottom", fill="x", padx=5, pady=(0,5))
 
-        # İşlem Label'ı
+        # Veri İşleniyor Label'ı
         self.lbl_islem_durumu = ttk.Label(self.frm_sol_panel, text="Veri İşleniyor. Lütfen Bekleyiniz...",
                                           font=("Arial", 12, "italic"), background="black", foreground="white",)
         self.islem_label_visible = False
@@ -333,9 +320,8 @@ class MainWindow:
         self.status_bar.pack(side="bottom", fill="x")
 
         self.guncelle_dijital_saat()
-
-        #self.load_data_from_files_to_db()
         self.load_initial_data()
+
         # Combobox seçim değişikliklerini ayarlara kaydet
         self.cmb_device_type.bind("<<ComboboxSelected>>", self.on_device_type_selected)
         self.cmb_device_serial.bind("<<ComboboxSelected>>", self.on_device_serial_selected)
@@ -360,7 +346,7 @@ class MainWindow:
         self.txt_glukometre_yuzde.bind("<FocusIn>", self.kontrol_cihaz_kayit_cakisma)
         self.txt_lab_yuzde.bind("<FocusIn>", self.kontrol_cihaz_kayit_cakisma)
 
-        self.cakisma_uyarildi = False  # Uyarı gösterildi mi kontrolü
+        self.cakisma_uyarildi = False  # Uyarı kutusunun sadece 1 kez çıkması için gösterildi mi kontrolü
 
     def start_islem_label(self):
         if not self.islem_label_visible:
@@ -375,7 +361,7 @@ class MainWindow:
             if self.blinking_after_id:
                 self.master.after_cancel(self.blinking_after_id)
                 self.blinking_after_id = None
-            self.lbl_islem_durumu.config(foreground="blue") # Rengi normale döndür
+            self.lbl_islem_durumu.config(foreground="blue")
 
     def _blink_islem_label(self):
         if self.islem_label_visible:
@@ -418,24 +404,20 @@ class MainWindow:
             print(f"DB Ayar yükleme hatası ({key}): {e}")
             return default
 
-    def on_radio_station_selected(self, event=None):
-        # Called when a new radio station is selected from the combobox
-        if self.radio_process and self.radio_process.poll() is None: # If radio is currently playing
-            self.stop_radio()
-            # Wait a bit for ffplay to stop, then play new station with current volume
-            self.master.after(200, self.play_radio_command)
+    def on_radio_station_selected(self, event=None): # Comboboxtan başka bir radyo seçilince        
+        if self.radio_process and self.radio_process.poll() is None: # Radyo çalıyorsa önce durdur
+            self.stop_radio()           
+            self.master.after(200, self.play_radio_command) # ffplay in durmasını bekle, sonra mevcut ses seviyesi ile yeni radyo çal 
 
     def on_volume_change(self, value_str):
         volume_level = int(float(value_str))
-        self.radio_volume.set(volume_level) # Ensure IntVar is updated
+        self.radio_volume.set(volume_level)
         self.lbl_volume_percent.config(text=f"Ses Seviyesi: {volume_level}%")
         self.save_setting("last_radio_volume", str(volume_level))
-
-        if self.radio_process and self.radio_process.poll() is None: # If radio is currently playing
+        if self.radio_process and self.radio_process.poll() is None: # Radyo çalıyorsa önce durdur
             self.stop_radio()
-            # Wait a bit for ffplay to stop, then restart with new volume
-            self.master.after(200, lambda: self.play_radio(volume_level=volume_level))
-        
+            # ffplay in durmasını bekle, sonra yeni ses seviyesi ile tekrar çal 
+            self.master.after(200, lambda: self.play_radio(volume_level=volume_level))        
         else:
             self.lbl_volume_percent.config(text=f"Ses Seviyesi: {volume_level}%") # Sadece ses seviyesini göster
             
@@ -445,7 +427,6 @@ class MainWindow:
             return
 
         if not self.is_muted:
-            # Sesi kıs
             self.previous_volume = self.radio_volume.get()
             self.radio_volume.set(0)
             self.volume_slider.set(0)
@@ -485,11 +466,11 @@ class MainWindow:
         if playing:
             self.btn_radyo_play.config(state=tk.DISABLED)
             self.btn_radyo_stop.config(state=tk.NORMAL)
-            self.btn_mute_sound.config(state=tk.NORMAL) # Sesi Kıs butonu aktif
+            self.btn_mute_sound.config(state=tk.NORMAL)
         else:
             self.btn_radyo_play.config(state=tk.NORMAL)
             self.btn_radyo_stop.config(state=tk.DISABLED)
-            self.btn_mute_sound.config(state=tk.DISABLED) # Sesi Kıs butonu pasif
+            self.btn_mute_sound.config(state=tk.DISABLED)
 
     def start_marquee(self, station_name):
         self.marquee_text = f"..:: NOW PLAYING - {station_name} ::.."
@@ -605,29 +586,24 @@ class MainWindow:
         conn.close()
         self.cmb_device_serial['values'] = self.device_serials
 
-        # Otomatik seçim kaldırıldı, ayarlardan yükle
         last_serial = self.load_setting("last_selected_serial_no")
         if last_serial and last_serial in self.device_serials:
             self.cmb_device_serial.set(last_serial)
         else:
             self.cmb_device_serial.set("")
 
-    # GlukometreTakip.py dosyasında, MainWindow sınıfı içinde
     def load_radio_stations_from_db(self):
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
         cursor.execute("SELECT radyo_adi, radyo_url FROM radyolar")
         results = cursor.fetchall()
-        # Yerel değişkenlere ata
         local_radio_station_names = [row[0] for row in results]
         local_radio_station_map = {row[0]: row[1] for row in results}
         conn.close()
 
-        # Sınıf özelliklerini de ayarla (isteğe bağlı, __init__ içinde de yapılabilir)
         self.radio_station_names = local_radio_station_names
         self.radio_station_map = local_radio_station_map
-
-        return local_radio_station_names, local_radio_station_map # Veriyi DÖNDÜR
+        return local_radio_station_names, local_radio_station_map
 
     def get_son4hane_for_device(self, birim, tip, seri):
         conn = sqlite3.connect(DB_FILE)
@@ -693,7 +669,7 @@ class MainWindow:
                 VALUES (?, ?, ?, ?)
             """, (birim, tip, seri, son4))
             conn.commit()
-            self.on_birim_cihaz_secildi() # Combobox'ı güncelle
+            self.on_birim_cihaz_secildi()
             return True
         except sqlite3.Error as e:
             messagebox.showerror("Veritabanı Hatası", f"Cihaz kaydı sırasında hata: {e}")
@@ -863,7 +839,6 @@ class MainWindow:
         self.txt_l3.grid(row=0, column=5, padx=5, pady=5)
         self.l_entry_tooltips["l3_entry"] = ToolTip(self.txt_l3, "Seviye 3 (L3) Değeri 252-396 arası olmalı")
 
-
         ttk.Button(frm_kalite_input, text="Tabloya Aktar", command=self.tabloya_aktar_kalite).grid(row=0, column=6, padx=20, pady=5)
 
         columns_kalite = (
@@ -899,7 +874,6 @@ class MainWindow:
         lbl_tablo_baslik_yuzde = ttk.Label(self.tab2, text="YÜZDE SAPMA ÖLÇÜMLERİ", font=("Tahoma", 14, "bold"))
         lbl_tablo_baslik_yuzde.grid(row=0, column=0, pady=(10,5), sticky="n")
         self.tab2.grid_rowconfigure(0, weight=0)
-
 
         frm_yuzde_input = ttk.LabelFrame(self.tab2, text="Yüzde Sapma Değer Girişi", style="YuzdeInput.TLabelframe")
         frm_yuzde_input.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
@@ -1002,6 +976,11 @@ class MainWindow:
         menu_dosya.add_command(label="Çıkış", command=self.on_closing)
         menubar.add_cascade(label="Dosya", menu=menu_dosya)
 
+        menu_cihaz_takip = tk.Menu(menubar, tearoff=0)
+        menu_cihaz_takip.add_command(label="Cihaz Ekle/Sil", command=self.open_cihaz_ekle_sil_dialog)
+        menu_cihaz_takip.add_command(label="Cihaz Değişim Formu Oluştur") # TODO: Fonksiyon eklenecek
+        menubar.add_cascade(label="Cihaz Takibi", menu=menu_cihaz_takip)
+
         menu_kalite_kontrol = tk.Menu(menubar, tearoff=0)
         menu_kalite_kontrol.add_command(label="HBTC Formu Oluştur", command=self.hbtc_formu_olustur)
         menu_kalite_kontrol.add_command(label="Verileri Excel'e Aktar", command=lambda: self.excel_e_aktar_sablon(self.tree_kalite, "KaliteKontrol", KALITE_KONTROL_SABLON_EXCEL))
@@ -1028,6 +1007,284 @@ class MainWindow:
         self.master.config(menu=menubar)
         self.master.bind('<Control-h>', lambda event: self.open_calculator())
         self.master.bind('<Control-t>', lambda event: self.open_calendar())
+
+    def open_cihaz_ekle_sil_dialog(self):
+        dialog = tk.Toplevel(self.master)
+        dialog.title("Cihaz Ekle / Sil")
+        dialog.geometry("800x400")  # Boyutları ayarlayabilirsiniz
+        dialog.transient(self.master)
+        dialog.grab_set()
+
+        # İkonu ayarla
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            plus_icon_path = os.path.join(script_dir, "Resources", "plus.ico")
+            dialog.iconbitmap(plus_icon_path)
+        except:
+            pass
+
+        # Ana Frame
+        main_frame = ttk.Frame(dialog)
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        dialog.columnconfigure(0, weight=1)
+        dialog.rowconfigure(0, weight=1)
+
+        # Cihaz Ekle Frame
+        ekle_frame = ttk.LabelFrame(main_frame, text="Cihaz Ekle", padding=10)
+        ekle_frame.pack(side="left", fill="both", expand=True, padx=(0, 5))
+        ekle_frame.columnconfigure(1, weight=1)
+
+        # Cihaz Sil Frame
+        sil_frame = ttk.LabelFrame(main_frame, text="Cihaz Sil", padding=10)
+        sil_frame.pack(side="left", fill="both", expand=True, padx=(5, 0))
+        sil_frame.columnconfigure(1, weight=1)
+
+        # 1 - Birim Combobox (Sil)
+        ttk.Label(sil_frame, text="Birim:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.cmb_birim_sil = ttk.Combobox(sil_frame, state="readonly")
+        self.cmb_birim_sil['values'] = self.birimler  # Veritabanından birimler
+        if self.birimler:
+            self.cmb_birim_sil.current(0)
+        self.cmb_birim_sil.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+
+        # 2 - Cihaz Combobox (Sil)
+        ttk.Label(sil_frame, text="Cihaz:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.cmb_cihaz_sil = ttk.Combobox(sil_frame, state="readonly")
+        self.cmb_cihaz_sil.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+
+        # 3 - Seri No Combobox (Sil)
+        ttk.Label(sil_frame, text="Seri No:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.cmb_seri_no_sil = ttk.Combobox(sil_frame, state="readonly")
+        self.cmb_seri_no_sil.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+
+        # 4 - Son 4 Hane Combobox (Sil)
+        ttk.Label(sil_frame, text="Son 4 Hane:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
+        self.cmb_son4hane_sil = ttk.Combobox(sil_frame, state="readonly")
+        self.cmb_son4hane_sil.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+
+        def load_cihazlar_sil(event=None):
+            birim = self.cmb_birim_sil.get()
+            if not birim:
+                self.cmb_cihaz_sil['values'] = []
+                self.cmb_cihaz_sil.set("")
+                return
+
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT cihaz_tipi FROM cihaz_kayitlari
+                WHERE birim_adi = ?
+            """, (birim,))
+            cihazlar = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            self.cmb_cihaz_sil['values'] = cihazlar
+            if cihazlar:
+                self.cmb_cihaz_sil.current(0)
+                load_seri_no_sil()
+            else:
+                self.cmb_cihaz_sil.set("")
+                self.cmb_seri_no_sil['values'] = []
+                self.cmb_seri_no_sil.set("")
+                self.cmb_son4hane_sil['values'] = []
+                self.cmb_son4hane_sil.set("")
+
+        def load_seri_no_sil(event=None):
+            birim = self.cmb_birim_sil.get()
+            cihaz = self.cmb_cihaz_sil.get()
+            if not (birim and cihaz):
+                self.cmb_seri_no_sil['values'] = []
+                self.cmb_seri_no_sil.set("")
+                return
+
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT cihaz_seri FROM cihaz_kayitlari
+                WHERE birim_adi = ? AND cihaz_tipi = ?
+            """, (birim, cihaz))
+            seri_nolar = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            self.cmb_seri_no_sil['values'] = seri_nolar
+            if seri_nolar:
+                self.cmb_seri_no_sil.current(0)
+                load_son4hane_sil()
+            else:
+                self.cmb_seri_no_sil.set("")
+                self.cmb_son4hane_sil['values'] = []
+                self.cmb_son4hane_sil.set("")
+
+        def load_son4hane_sil(event=None):
+            birim = self.cmb_birim_sil.get()
+            cihaz = self.cmb_cihaz_sil.get()
+            seri_no = self.cmb_seri_no_sil.get()
+            if not (birim and cihaz and seri_no):
+                self.cmb_son4hane_sil['values'] = []
+                self.cmb_son4hane_sil.set("")
+                return
+
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT DISTINCT son_4_hane FROM cihaz_kayitlari
+                WHERE birim_adi = ? AND cihaz_tipi = ? AND cihaz_seri = ?
+            """, (birim, cihaz, seri_no))
+            son4haneler = [row[0] for row in cursor.fetchall()]
+            conn.close()
+            self.cmb_son4hane_sil['values'] = son4haneler
+            if son4haneler:
+                self.cmb_son4hane_sil.current(0)
+            else:
+                self.cmb_son4hane_sil.set("")
+
+        # 5 - Cihaz Sil Butonu
+        def cihaz_sil_click():
+            birim = self.cmb_birim_sil.get()
+            cihaz = self.cmb_cihaz_sil.get()
+            seri_no = self.cmb_seri_no_sil.get()
+            son4hane = self.cmb_son4hane_sil.get()
+            cihaz_seri_no_tam = seri_no + son4hane
+
+            if not (birim and cihaz and seri_no and son4hane):
+                messagebox.showerror("Hata", "Lütfen tüm alanları seçin!")
+                return
+
+            if messagebox.askokcancel("Onay", f"{birim} birimine ait {cihaz_seri_no_tam} seri numaralı {cihaz} cihazını silmek istediğinize emin misiniz?"):
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                try:
+                    cursor.execute("""
+                        DELETE FROM cihaz_kayitlari
+                        WHERE birim_adi = ? AND cihaz_tipi = ? AND cihaz_seri = ? AND son_4_hane = ?
+                    """, (birim, cihaz, seri_no, son4hane))
+                    conn.commit()
+                    messagebox.showinfo("Başarılı", "Cihaz başarıyla silindi.")
+                    self.load_device_types_from_db()
+                    self.load_device_serials_from_db()
+                    self.on_birim_cihaz_secildi()
+                    dialog.destroy()
+                except sqlite3.Error as e:
+                    messagebox.showerror("Veritabanı Hatası", f"Cihaz silinirken hata: {e}")
+                finally:
+                    conn.close()
+
+        ttk.Button(sil_frame, text="Cihaz Sil", command=cihaz_sil_click).grid(row=4, column=1, sticky="e", padx=5, pady=10)
+
+        self.cmb_birim_sil.bind("<<ComboboxSelected>>", load_cihazlar_sil)
+        self.cmb_cihaz_sil.bind("<<ComboboxSelected>>", load_seri_no_sil)
+        self.cmb_seri_no_sil.bind("<<ComboboxSelected>>", load_son4hane_sil)
+
+        # 1 - Birim Combobox
+        ttk.Label(ekle_frame, text="Birim:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.cmb_birim_ekle = ttk.Combobox(ekle_frame, state="readonly")
+        self.cmb_birim_ekle['values'] = self.birimler  # Veritabanından birimler
+        if self.birimler:
+            self.cmb_birim_ekle.current(0)
+        self.cmb_birim_ekle.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+
+        # 2 - Cihaz Textbox
+        ttk.Label(ekle_frame, text="Cihaz:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.cihaz_text = tk.StringVar(value="GLUKOMETRE-")
+        self.txt_cihaz_ekle = ttk.Entry(ekle_frame, textvariable=self.cihaz_text)
+        self.txt_cihaz_ekle.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+
+        def cihaz_text_validate(new_text):
+            if new_text.startswith("GLUKOMETRE-"):
+                return True
+            return False
+
+        def cihaz_text_change(event):
+            current_text = self.txt_cihaz_ekle.get()
+            if not current_text.startswith("GLUKOMETRE-"):
+                self.txt_cihaz_ekle.delete(0, tk.END)
+                self.txt_cihaz_ekle.insert(0, "GLUKOMETRE-")
+                current_text = "GLUKOMETRE-"
+            after_prefix = current_text[len("GLUKOMETRE-"):].upper()
+            self.txt_cihaz_ekle.delete(len("GLUKOMETRE-"), tk.END)
+            self.txt_cihaz_ekle.insert(len("GLUKOMETRE-"), after_prefix)
+
+        self.txt_cihaz_ekle.bind("<KeyRelease>", cihaz_text_change)
+        cihaz_vcmd = (dialog.register(cihaz_text_validate), '%P')
+        self.txt_cihaz_ekle.config(validate="key", validatecommand=cihaz_vcmd)
+
+        # 3 - Seri No Textbox
+        ttk.Label(ekle_frame, text="Seri No:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.txt_seri_no_ekle = ttk.Entry(ekle_frame)
+        self.txt_seri_no_ekle.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+
+        def seri_no_validate(new_text):
+            return all(c.isalnum() for c in new_text)
+
+        seri_no_vcmd = (dialog.register(seri_no_validate), '%P')
+        self.txt_seri_no_ekle.config(validate="key", validatecommand=seri_no_vcmd)
+
+        def seri_no_change(event):
+            current_text = self.txt_seri_no_ekle.get()
+            self.txt_seri_no_ekle.delete(0, tk.END)
+            self.txt_seri_no_ekle.insert(0, current_text.upper())
+
+        self.txt_seri_no_ekle.bind("<KeyRelease>", seri_no_change)
+
+        # 4 - Son 4 Hane Textbox
+        ttk.Label(ekle_frame, text="Son 4 Hane:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
+        self.txt_son4hane_ekle = ttk.Entry(ekle_frame)
+        self.txt_son4hane_ekle.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+
+        def son4hane_validate(new_text):
+            return all(c.isalnum() for c in new_text)
+
+        son4hane_vcmd = (dialog.register(son4hane_validate), '%P')
+        self.txt_son4hane_ekle.config(validate="key", validatecommand=son4hane_vcmd)
+
+        def son4hane_change(event):
+            current_text = self.txt_son4hane_ekle.get()
+            self.txt_son4hane_ekle.delete(0, tk.END)
+            self.txt_son4hane_ekle.insert(0, current_text.upper())
+
+        self.txt_son4hane_ekle.bind("<KeyRelease>", son4hane_change)
+
+        # 5 - Cihaz Ekle Butonu
+        def cihaz_ekle_click():
+            birim = self.cmb_birim_ekle.get()
+            cihaz = self.txt_cihaz_ekle.get()
+            seri_no = self.txt_seri_no_ekle.get()
+            son4hane = self.txt_son4hane_ekle.get()
+
+            if not (birim and cihaz and seri_no and son4hane):
+                messagebox.showerror("Hata", "Lütfen tüm alanları doldurun!")
+                return
+
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            try:
+                # Veritabanına kayıt işlemleri
+                cursor.execute("INSERT OR IGNORE INTO cihaz_tipleri (cihaz_tipi) VALUES (?)", (cihaz,))
+                cursor.execute("INSERT OR IGNORE INTO cihaz_serileri (cihaz_seri) VALUES (?)", (seri_no,))
+                cursor.execute("""
+                    INSERT INTO cihaz_kayitlari (birim_adi, cihaz_tipi, cihaz_seri, son_4_hane)
+                    VALUES (?, ?, ?, ?)
+                """, (birim, cihaz, seri_no, son4hane))
+                conn.commit()
+                messagebox.showinfo("Başarılı", "Cihaz başarıyla eklendi.")
+                self.load_device_types_from_db()
+                self.load_device_serials_from_db()
+                self.on_birim_cihaz_secildi()
+                dialog.destroy()
+            except sqlite3.Error as e:
+                messagebox.showerror("Veritabanı Hatası", f"Cihaz eklenirken hata: {e}")
+            finally:
+                conn.close()
+
+        ttk.Button(ekle_frame, text="Cihaz Ekle", command=cihaz_ekle_click).grid(row=4, column=1, sticky="e", padx=5, pady=10)
+
+        # Pencere boyutlandırma
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        x = (dialog.winfo_screenwidth() // 2) - (width // 2)
+        y = (dialog.winfo_screenheight() // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        dialog.focus_set()
+        dialog.wait_window()
 
     def hbtc_formu_olustur(self):
         if not PYTHON_DOCX_AVAILABLE:
@@ -1245,7 +1502,6 @@ class MainWindow:
                 messagebox.showwarning("Uyarı", "Birim zaten mevcut!", parent=top)
                 return
 
-            # Veritabanına ekle
             try:
                 conn = sqlite3.connect(DB_FILE)
                 cursor = conn.cursor()
@@ -1937,7 +2193,6 @@ Son Güncelleme: 19 Mayıs 2025
         finally:
             self.stop_islem_label()
 
-
     def show_backup_selection_dialog(self, kalite_files, yuzde_files):
         dialog = tk.Toplevel(self.master)
         dialog.title("Yedek Dosyalarını Seçin")
@@ -2015,7 +2270,6 @@ Son Güncelleme: 19 Mayıs 2025
             return result["kalite"], result["yuzde"]
         else:
              return None
-
 
     def load_data_from_csv(self):
         self.start_islem_label()
@@ -2204,9 +2458,8 @@ Son Güncelleme: 19 Mayıs 2025
             ffmpeg_dir = os.path.join(script_dir, "ffmpeg")
             ffplay_path = os.path.join(ffmpeg_dir, "ffplay.exe")
             
-            if not os.path.exists(ffplay_path):
-                # Eğer yerel klasörde yoksa, sistem PATH'ında ara
-                ffplay_path = "ffplay"
+            if not os.path.exists(ffplay_path):                
+                ffplay_path = "ffplay" # Eğer yerel klasörde yoksa, sistem PATH'ında ara
 
             startupinfo = None; creation_flags = 0
             if sys.platform == "win32":
@@ -2264,8 +2517,6 @@ Son Güncelleme: 19 Mayıs 2025
         ttk.Label(dialog, text="Boyunuzu Giriniz (Cm):").pack(pady=5)
         height_entry = ttk.Entry(dialog)
         height_entry.pack(pady=5)
-
-        # Odak ve imleç ayarları buraya taşındı
         dialog.focus_set()
         weight_entry.focus_set()
 
