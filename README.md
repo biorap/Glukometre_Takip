@@ -6,6 +6,7 @@ Glukometre Takip Programı, sağlık kuruluşlarında kullanılan glukometre cih
 
 Öne Çıkan Özellikler:\
 • Kullanıcı dostu, anlaşılır arayüz\
+• Cihaz Veritabanı Yönetimi (Cihaz Ekleme, Silme, Arama)\
 • Kalite kontrol ve yüzde sapma ölçümlerinin kaydı\
 • Otomatik Veri Yedekleme\
 • Excel ve Word raporları oluşturma\
